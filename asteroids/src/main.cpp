@@ -1,5 +1,5 @@
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <windows.h>
 #include "window.hpp"
 
@@ -36,9 +36,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
 
     // Run the message loop.
     MSG msg = {};
-    while (GetMessage(&msg, NULL, 0, 0) > 0) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+
+    while (true) {
+        bool has_message = PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE);
+
+        if (!has_message) {
+            InvalidateRect(window.get_handle(), NULL, true);
+            continue;
+        }
+
+        if (msg.message == WM_QUIT)
+            return 0;
+        else
+           DispatchMessageA(&msg);
     }
 
     return 0;

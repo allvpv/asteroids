@@ -27,10 +27,37 @@ bool WindowLogic::Init(Window &window) {
         return false;
     }
 
+    D2D1_SIZE_U size = D2D1::SizeU(window.get_inner_width(), window.get_inner_height());
+
+    hr = d2d_factory->CreateHwndRenderTarget(
+        D2D1::RenderTargetProperties(),
+        D2D1::HwndRenderTargetProperties(window.get_handle(), size),
+        &render_target);
+
+    if (hr != S_OK) {
+        std::wcout << L"Failed to initialize HwndRenderTarget: " << _com_error(hr).ErrorMessage()
+                   << '\n';
+        return false;
+    }
+
     return true;
 }
 
 bool WindowLogic::on_paint() {
+    std::wcout << L"OP\n";
+    render_target->BeginDraw();
+
+    D2D1_COLOR_F color {
+        .r = 0.15,
+        .g = 0.15,
+        .b = 0.225,
+        .a = 1.0
+    };
+
+    render_target->Clear(&color);
+
+    render_target->EndDraw();
+
     return true;
 }
 

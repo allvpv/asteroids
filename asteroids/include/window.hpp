@@ -15,9 +15,9 @@ struct Window {
 
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    HWND get_handle() {
-        return handle;
-    }
+    HWND get_handle() { return handle; }
+    i32 get_inner_width() { return inner_width; }
+    i32 get_inner_height() { return inner_height; }
 
 private:
     WindowLogic logic;

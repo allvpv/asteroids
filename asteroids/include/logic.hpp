@@ -16,4 +16,5 @@ struct WindowLogic {
 
 private:
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
+    Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
 };

@@ -154,4 +154,3 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
-
