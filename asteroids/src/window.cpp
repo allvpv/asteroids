@@ -8,7 +8,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     HINSTANCE hInstance = GetModuleHandle(NULL);
 
     if (!hInstance) {
-        std::cout << "Failed to get module handle";
+        std::wcout << L"Failed to get module handle";
         return false;
     }
 
@@ -19,7 +19,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     wc.lpszClassName = class_name;
 
     if (!RegisterClass(&wc)) {
-        std::cout << "Failed to register class";
+        std::wcout << L"Failed to register class";
         return false;
     }
 
@@ -41,7 +41,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
 
 
     if (!hwnd || handle != hwnd) {
-        std::cout << "Failed to create window";
+        std::wcout << L"Failed to create window";
         return false;
     }
 
@@ -70,8 +70,8 @@ bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
     );
 
     if (!result) {
-        std::cout << "Cannot get size of window for (" << inner_width << ", " << inner_height
-                  << ") inner area dimensions\n";
+        std::wcout << L"Cannot get size of window for (" << inner_width << L", " << inner_height
+                   << L") inner area dimensions\n";
         return false;
     }
 
@@ -83,8 +83,8 @@ bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
 }
 
 bool Window::SetOuterSize(i32 outer_width, i32 outer_height, u32 dpi) {
-    i32 physical_width = physical_pixels(outer_width, dpi);
-    i32 physical_height = physical_pixels(outer_height, dpi);
+    i32 physical_width = PHYSICAL_PIXELS(outer_width, dpi);
+    i32 physical_height = PHYSICAL_PIXELS(outer_height, dpi);
 
     return SetWindowPos(
         handle,

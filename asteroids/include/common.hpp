@@ -12,11 +12,7 @@ using i8 = int8_t;
 using f32 = float;
 using f64 = double;
 
-constexpr i32 physical_pixels(i32 logical, u32 dpi) {
-    return i32(ceil(f32(logical * dpi) / 96.));
-}
+#define PHYSICAL_PIXELS(logical, dpi) i32(ceil(f32((logical) * (dpi)) / 96.))
+#define LOGICAL_PIXELS(physical, dpi) i32(f32((physical) * 96) / f32(dpi))
 
-constexpr i32 logical_pixels(i32 physical, u32 dpi) {
-    return i32(f32(physical * 96) / f32(dpi));
-}
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <stdio.h>
 #include <windows.h>
 #include "window.hpp"
@@ -8,17 +9,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
 
     FILE* new_stream;
     if (freopen_s(&new_stream, "CONIN$", "r", stdin) != 0 || new_stream != stdin) {
-        std::cout << "Cannot attach stdin to console";
+        std::wcout << L"Cannot attach stdin to console";
         return -1;
     }
 
     if (freopen_s(&new_stream, "CONOUT$", "w", stdout) != 0 || new_stream != stdout) {
-        std::cout << "Cannot attach stdout to console";
+        std::wcout << L"Cannot attach stdout to console";
         return -1;
     }
 
     if (freopen_s(&new_stream, "CONOUT$", "w", stderr) != 0 || new_stream != stderr) {
-        std::cout << "Cannot attach stderr to console";
+        std::wcout << L"Cannot attach stderr to console";
         return -1;
     }
 #endif
@@ -27,7 +28,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
     bool result = window.Init(L"Asteroids Class", L"Asteroids!");
 
     if (!result) {
-        while (true);
+        std::wcout << L"Cannot initialize window";
         return -1;
     }
 
@@ -40,7 +41,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
         DispatchMessage(&msg);
     }
 
-    std::cout << "UU\n";
-    while (true);
+    return 0;
 }
 
