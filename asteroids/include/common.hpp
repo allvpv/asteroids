@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
-#include <iostream>
+#include <cstdint>
+#include <cmath>
 
 using u32 = uint32_t;
 using i32 = int32_t;
@@ -13,10 +13,10 @@ using f32 = float;
 using f64 = double;
 
 constexpr i32 physical_pixels(i32 logical, u32 dpi) {
-    return i32(f32(logical * dpi) / 96.);
+    return i32(ceil(f32(logical * dpi) / 96.));
 }
 
 constexpr i32 logical_pixels(i32 physical, u32 dpi) {
-    return u32(f32(physical * dpi) / f32(dpi));
+    return i32(f32(physical * 96) / f32(dpi));
 }
 
