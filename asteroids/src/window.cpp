@@ -3,6 +3,7 @@
 #include "window.hpp"
 #include "logic.hpp"
 #include "common.hpp"
+#include "timer.hpp"
 
 bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -51,7 +52,8 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     ComputeOuterSize(outer_width, outer_height, dpi);
     SetOuterSize(outer_width, outer_height, dpi);
 
-    return logic.Init(*this);
+    return timer.Init() &&
+           logic.Init();
 }
 
 bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
@@ -98,6 +100,8 @@ bool Window::SetOuterSize(i32 outer_width, i32 outer_height, u32 dpi) {
 }
 
 void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    timer.update();
+
     switch(uMsg) {
         case WM_PAINT: {
             if (!logic.on_paint())

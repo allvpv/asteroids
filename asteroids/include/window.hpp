@@ -1,12 +1,14 @@
 #pragma once
 #include <windows.h>
 #include "common.hpp"
+#include "timer.hpp"
 #include "logic.hpp"
 
 struct Window {
     Window(u32 inner_width, u32 inner_height)
         : inner_width(inner_width)
-        , inner_height(inner_height) {}
+        , inner_height(inner_height)
+        , logic(*this) {}
 
     bool Init(const wchar_t* class_name, const wchar_t* title);
     bool ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi);
@@ -18,8 +20,10 @@ struct Window {
     HWND get_handle() { return handle; }
     i32 get_inner_width() { return inner_width; }
     i32 get_inner_height() { return inner_height; }
+    Timer& get_timer() { return timer; }
 
 private:
+    Timer timer;
     WindowLogic logic;
     HWND handle;
     i32 inner_width;

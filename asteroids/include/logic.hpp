@@ -9,12 +9,15 @@
 struct Window;
 
 struct WindowLogic {
-    bool Init(Window &window);
+    bool Init();
     bool on_paint();
     bool on_resize();
     bool on_mousemove();
 
+    WindowLogic(Window& window) : window(window) {}
+
 private:
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
+    Window& window;
 };

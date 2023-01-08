@@ -5,7 +5,7 @@
 #include "logic.hpp"
 #include "window.hpp"
 
-bool WindowLogic::Init(Window &window) {
+bool WindowLogic::Init() {
     HRESULT hr;
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
@@ -47,15 +47,27 @@ bool WindowLogic::on_paint() {
     std::wcout << L"OP\n";
     render_target->BeginDraw();
 
+    constexpr i64 PERIOD_I = 2;
+    constexpr f32 PERIOD_F = 2;
+
+    f32 progress = window.get_timer().get_time(PERIOD_I * 2);
+    f32 change;
+
+    if (progress > PERIOD_F)
+        change = 2.f * PERIOD_F - progress;
+    else
+        change = progress;
+
+    change /= 2.f; // normalize
+
     D2D1_COLOR_F color {
-        .r = 0.15,
-        .g = 0.15,
-        .b = 0.225,
-        .a = 1.0
+        .r = 0.10f - 0.075f * change,
+        .g = 0.10f - 0.075f * change,
+        .b = 0.20f - 0.075f * change,
+        .a = 1.f,
     };
 
     render_target->Clear(&color);
-
     render_target->EndDraw();
 
     return true;
