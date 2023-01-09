@@ -5,6 +5,9 @@
 #include "logic.hpp"
 #include "window.hpp"
 
+constexpr i32 BACKGROUND_INTERVAL = 40;
+constexpr i32 ASTEROID_INTERVAL = 5;
+
 bool WindowLogic::Init() {
     HRESULT hr;
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -40,30 +43,38 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    return true;
+    return background_timer.Init(BACKGROUND_INTERVAL) &&
+           asteroid_timer.Init(ASTEROID_INTERVAL);
+}
+
+void WindowLogic::new_asteroids() {
+    i32 ticks = asteroid_timer.get_intervals_count(true);
+
+    for (int i = 0; i < ticks; ++i) {
+        std::cout << "GEN\n";
+    }
 }
 
 bool WindowLogic::on_paint() {
+    asteroid_timer.update();
+    background_timer.update();
+
     std::wcout << L"OP\n";
     render_target->BeginDraw();
 
-    constexpr i64 PERIOD_I = 2;
-    constexpr f32 PERIOD_F = 2;
+    new_asteroids();
 
-    f32 progress = window.get_timer().get_time(PERIOD_I * 2);
-    f32 change;
+    f32 progress = 2.f * background_timer.get_interval_progress(true);
 
-    if (progress > PERIOD_F)
-        change = 2.f * PERIOD_F - progress;
-    else
-        change = progress;
+    if (progress > 1.f)
+        progress = 2.f - progress;
 
-    change /= 2.f; // normalize
+    std::wcout << "PR: " << progress << '\n';
 
     D2D1_COLOR_F color {
-        .r = 0.10f - 0.075f * change,
-        .g = 0.10f - 0.075f * change,
-        .b = 0.20f - 0.075f * change,
+        .r = 0.10f - 0.075f * progress,
+        .g = 0.10f - 0.075f * progress,
+        .b = 0.20f - 0.075f * progress,
         .a = 1.f,
     };
 

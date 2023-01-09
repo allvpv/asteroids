@@ -3,29 +3,49 @@
 #include "common.hpp"
 
 struct Timer {
-    bool Init() {
-        return QueryPerformanceFrequency((LARGE_INTEGER*) &frequency)
-            && QueryPerformanceCounter((LARGE_INTEGER*) &start_time);
-    }
+    bool Init(i64 interval_in_deciseconds) {
+        if (!QueryPerformanceFrequency((LARGE_INTEGER*) &frequency) ||
+            !QueryPerformanceCounter((LARGE_INTEGER*) &last_time)) {
+            return false;
+        }
 
-    f32 get_time(i64 period_in_seconds) {
-        i64 delta = update_time - start_time;
-        i64 period = frequency * period_in_seconds;
-        i64 time = delta % period;
+        reference_time = last_time;
+        interval = (frequency * interval_in_deciseconds) / 10;
 
-        return f32(time) / f32(frequency);
+        return true;
     }
 
     bool update() {
-        return QueryPerformanceCounter((LARGE_INTEGER*) &update_time);
+        return QueryPerformanceCounter((LARGE_INTEGER*) &last_time);
     }
 
-    i64 get_start_time() { return start_time; }
-    i64 get_update_time() { return update_time; }
-    i64 get_frequency() { return frequency; }
+    // Returns [0, 1)
+    f32 get_interval_progress(bool forget_elapsed_intervals) {
+        i64 delta = last_time - reference_time;
+        i64 count = delta / interval;
+        i64 modulo = delta % interval;
 
-private:
-    i64 start_time;
-    i64 update_time;
+        if (forget_elapsed_intervals)
+            reference_time += count * interval;
+
+        return f32(modulo) / f32(interval);
+    }
+
+    // How many intervals elapsed since last call? This method does not start a new interval.
+    i32 get_intervals_count(bool forget_elapsed_intervals) {
+        i64 delta = last_time - reference_time;
+        i64 count = delta / interval;
+
+        if (forget_elapsed_intervals)
+            reference_time += count * interval;
+
+        return i32 (count);
+    }
+
+protected:
+    i64 last_time;
+    i64 reference_time;
     i64 frequency;
+    i64 interval;
 };
+

@@ -24,7 +24,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
     }
 #endif
 
-    Window window(640, 480);
+    Window window(1366, 768);
     bool result = window.Init(L"Asteroids Class", L"Asteroids!");
 
     if (!result) {

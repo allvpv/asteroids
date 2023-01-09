@@ -20,10 +20,8 @@ struct Window {
     HWND get_handle() { return handle; }
     i32 get_inner_width() { return inner_width; }
     i32 get_inner_height() { return inner_height; }
-    Timer& get_timer() { return timer; }
 
 private:
-    Timer timer;
     WindowLogic logic;
     HWND handle;
     i32 inner_width;
