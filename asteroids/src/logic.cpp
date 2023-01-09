@@ -1,12 +1,16 @@
 #include <iostream>
+
 #include <d2d1_2.h>
 #include <comdef.h>
 
 #include "logic.hpp"
 #include "window.hpp"
 
-constexpr i32 BACKGROUND_INTERVAL = 40;
-constexpr i32 ASTEROID_INTERVAL = 5;
+namespace {
+    constexpr i32 BACKGROUND_INTERVAL = 40;
+    constexpr i32 ASTEROID_INTERVAL = 3;
+    constexpr i32 ASTEROID_RADIUS = 30;
+}
 
 bool WindowLogic::Init() {
     HRESULT hr;
@@ -43,33 +47,72 @@ bool WindowLogic::Init() {
         return false;
     }
 
+    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 0), &temp_brush);
+
+    if (hr != S_OK) {
+        std::wcout << L"Failed to create brush: " << _com_error(hr).ErrorMessage() << '\n';
+        return false;
+    }
+
     return background_timer.Init(BACKGROUND_INTERVAL) &&
-           asteroid_timer.Init(ASTEROID_INTERVAL);
+           new_asteroid_timer.Init(ASTEROID_INTERVAL);
 }
 
 void WindowLogic::new_asteroids() {
-    i32 ticks = asteroid_timer.get_intervals_count(true);
+    const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
     for (int i = 0; i < ticks; ++i) {
-        std::cout << "GEN\n";
+        const D2D1_SIZE_F size = render_target->GetSize();
+
+        const f64 shift_x = norm_asteroid_x(gen);
+        const f64 shift_y = unif_asteroid_y(gen);
+
+        const f32 x_pos = shift_x * size.width;
+        const f32 y_pos = -(shift_y * (size.height - 2*ASTEROID_RADIUS) + ASTEROID_RADIUS);
+
+        asteroids.push_front(Asteroid {
+            .x = x_pos,
+            .y = y_pos,
+        });
+    }
+}
+
+void WindowLogic::update_asteroids() {
+    for (auto& a : asteroids) {
+        a.y += 5;
+    }
+}
+
+void WindowLogic::paint_asteroids() {
+    for (auto& a : asteroids) {
+        std::cout << "Painting ellipse(" << a.x << ", " << a.y << ")\n";
+        auto e = D2D1::Ellipse(D2D1::Point2F(a.x, a.y), ASTEROID_RADIUS, ASTEROID_RADIUS);
+        render_target->FillEllipse(e, temp_brush.Get());
+    }
+
+    const D2D1_SIZE_F size = render_target->GetSize();
+
+    while (!asteroids.empty()) {
+        const Asteroid& last = asteroids.back();
+
+        if (last.y > size.height + ASTEROID_RADIUS)
+            asteroids.pop_back();
+        else
+            break;
     }
 }
 
 bool WindowLogic::on_paint() {
-    asteroid_timer.update();
+    new_asteroid_timer.update();
     background_timer.update();
 
     std::wcout << L"OP\n";
     render_target->BeginDraw();
 
-    new_asteroids();
-
     f32 progress = 2.f * background_timer.get_interval_progress(true);
 
     if (progress > 1.f)
         progress = 2.f - progress;
-
-    std::wcout << "PR: " << progress << '\n';
 
     D2D1_COLOR_F color {
         .r = 0.10f - 0.075f * progress,
@@ -79,6 +122,11 @@ bool WindowLogic::on_paint() {
     };
 
     render_target->Clear(&color);
+
+    update_asteroids();
+    new_asteroids();
+    paint_asteroids();
+
     render_target->EndDraw();
 
     return true;
