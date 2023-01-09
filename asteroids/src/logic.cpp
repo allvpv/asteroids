@@ -97,32 +97,35 @@ void WindowLogic::controller_move() {
     bool keypress_left = key_up(VK_LEFT);
     bool keypress_right = key_up(VK_RIGHT);
 
-    if (keypress_left) {
-        if (accel_left < 8)
-            accel_left += 0.125;
-        if (accel_right > 1)
-            accel_right = max(1.f, accel_right - 0.25);
+    auto accelerate = [](f32& acceleration) {
+        if (acceleration < 1)
+            acceleration += 0.75;
+        else if (acceleration < 2)
+            acceleration += 0.5;
+        else if (acceleration < 3)
+            acceleration += 0.25;
+        else if (acceleration < 9)
+            acceleration += 0.125;
+    };
 
-        controller_x += -accel_left + (accel_right - 1);
+    auto decelerate = [](f32& acceleration) {
+        acceleration = max(0.f, acceleration - 0.5);
+    };
+
+    if (keypress_left) {
+        accelerate(accel_left);
+        decelerate(accel_right);
     }
     else if (keypress_right) {
-        if (accel_right < 8)
-            accel_right += 0.125;
-        if (accel_left > 1)
-            accel_left = max(1.f, accel_left - 0.25);
-
-        controller_x += accel_right + (1 - accel_left);
+        accelerate(accel_right);
+        decelerate(accel_left);
     }
     else {
-        if (accel_right > 1)
-            accel_right = max(1.f, accel_right - 0.25);
-
-        if (accel_left > 1)
-            accel_left = max(1.f, accel_left - 0.25);
-
-        controller_x += (accel_right - 1) + (1 - accel_left);
+        decelerate(accel_right);
+        decelerate(accel_left);
     }
 
+    controller_x += accel_right - accel_left;
 }
 
 void WindowLogic::update_asteroids() {

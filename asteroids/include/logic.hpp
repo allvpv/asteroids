@@ -46,7 +46,7 @@ private:
         f32 x, y;
     };
 
-    f32 accel_left = 1, accel_right = 1;
+    f32 accel_left = 0, accel_right = 0;
     f32 controller_x;
     f32 controller_y;
 
