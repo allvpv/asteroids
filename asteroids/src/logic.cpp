@@ -1,4 +1,5 @@
 #include <iostream>
+#include <utility>
 
 #include <d2d1_2.h>
 #include <comdef.h>
@@ -7,9 +8,12 @@
 #include "window.hpp"
 
 namespace {
-    constexpr i32 BACKGROUND_INTERVAL = 40;
-    constexpr i32 ASTEROID_INTERVAL = 3;
+    constexpr i32 MOVE_INTERVAL = 0'005;
+    constexpr i32 BACKGROUND_INTERVAL = 4'000;
+    constexpr i32 ASTEROID_INTERVAL = 0'300;
     constexpr i32 ASTEROID_RADIUS = 30;
+
+    constexpr std::pair<i32, i32> CONTROLLER_ELLIPSE_RADIUS = { 30, 60 };
 }
 
 bool WindowLogic::Init() {
@@ -36,6 +40,9 @@ bool WindowLogic::Init() {
 
     D2D1_SIZE_U size = D2D1::SizeU(window.get_inner_width(), window.get_inner_height());
 
+    controller_x = size.width / 2;
+    controller_y = size.height - 60;
+
     hr = d2d_factory->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
         D2D1::HwndRenderTargetProperties(window.get_handle(), size),
@@ -47,7 +54,8 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 0), &temp_brush);
+    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &temp_asteroid_brush);
+    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(0.f, 1.f, 0.f), &temp_controller_brush);
 
     if (hr != S_OK) {
         std::wcout << L"Failed to create brush: " << _com_error(hr).ErrorMessage() << '\n';
@@ -55,14 +63,22 @@ bool WindowLogic::Init() {
     }
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
-           new_asteroid_timer.Init(ASTEROID_INTERVAL);
+           new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
+           move_asteroid_timer.Init(MOVE_INTERVAL);
+}
+
+void WindowLogic::paint_controller() {
+    auto [width, height] = CONTROLLER_ELLIPSE_RADIUS;
+
+    auto e = D2D1::Ellipse(D2D1::Point2F(controller_x, controller_y), width, height);
+    render_target->FillEllipse(e, temp_controller_brush.Get());
 }
 
 void WindowLogic::new_asteroids() {
     const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
-    for (int i = 0; i < ticks; ++i) {
-        const D2D1_SIZE_F size = render_target->GetSize();
+    if (ticks) {
+        const auto size = render_target->GetSize();
 
         const f64 shift_x = norm_asteroid_x(gen);
         const f64 shift_y = unif_asteroid_y(gen);
@@ -78,8 +94,10 @@ void WindowLogic::new_asteroids() {
 }
 
 void WindowLogic::update_asteroids() {
+    const i32 ticks = move_asteroid_timer.get_intervals_count(true);
+
     for (auto& a : asteroids) {
-        a.y += 5;
+        a.y += ticks;
     }
 }
 
@@ -87,7 +105,7 @@ void WindowLogic::paint_asteroids() {
     for (auto& a : asteroids) {
         std::cout << "Painting ellipse(" << a.x << ", " << a.y << ")\n";
         auto e = D2D1::Ellipse(D2D1::Point2F(a.x, a.y), ASTEROID_RADIUS, ASTEROID_RADIUS);
-        render_target->FillEllipse(e, temp_brush.Get());
+        render_target->FillEllipse(e, temp_asteroid_brush.Get());
     }
 
     const D2D1_SIZE_F size = render_target->GetSize();
@@ -103,8 +121,9 @@ void WindowLogic::paint_asteroids() {
 }
 
 bool WindowLogic::on_paint() {
-    new_asteroid_timer.update();
     background_timer.update();
+    new_asteroid_timer.update();
+    move_asteroid_timer.update();
 
     std::wcout << L"OP\n";
     render_target->BeginDraw();
@@ -126,6 +145,7 @@ bool WindowLogic::on_paint() {
     update_asteroids();
     new_asteroids();
     paint_asteroids();
+    paint_controller();
 
     render_target->EndDraw();
 

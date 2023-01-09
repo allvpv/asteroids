@@ -21,6 +21,7 @@ struct WindowLogic {
     void new_asteroids();
     void update_asteroids();
     void paint_asteroids();
+    void paint_controller();
 
     WindowLogic(Window& window)
         : window(window)
@@ -31,15 +32,20 @@ struct WindowLogic {
 private:
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
-    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_brush;
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_asteroid_brush;
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_controller_brush;
     Window& window;
 
     Timer background_timer;
     Timer new_asteroid_timer;
+    Timer move_asteroid_timer;
 
     struct Asteroid {
         f32 x, y;
     };
+
+    f32 controller_x;
+    f32 controller_y;
 
     std::deque<Asteroid> asteroids;
 
@@ -49,3 +55,4 @@ private:
     std::random_device rd;
     std::mt19937 gen;
 };
+
