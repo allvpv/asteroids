@@ -5,23 +5,25 @@
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
 #ifndef NDEBUG
-    AllocConsole();
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+        FILE* new_stream;
 
-    FILE* new_stream;
-    if (freopen_s(&new_stream, "CONIN$", "r", stdin) != 0 || new_stream != stdin) {
-        std::wcout << L"Cannot attach stdin to console";
-        return -1;
+        if (freopen_s(&new_stream, "CONIN$", "r", stdin) != 0 || new_stream != stdin) {
+            std::wcout << L"Cannot attach stdin to console";
+            return -1;
+        }
+
+        if (freopen_s(&new_stream, "CONOUT$", "w", stdout) != 0 || new_stream != stdout) {
+            std::wcout << L"Cannot attach stdout to console";
+            return -1;
+        }
+
+        if (freopen_s(&new_stream, "CONOUT$", "w", stderr) != 0 || new_stream != stderr) {
+            std::wcout << L"Cannot attach stderr to console";
+            return -1;
+        }
     }
 
-    if (freopen_s(&new_stream, "CONOUT$", "w", stdout) != 0 || new_stream != stdout) {
-        std::wcout << L"Cannot attach stdout to console";
-        return -1;
-    }
-
-    if (freopen_s(&new_stream, "CONOUT$", "w", stderr) != 0 || new_stream != stderr) {
-        std::wcout << L"Cannot attach stderr to console";
-        return -1;
-    }
 #endif
 
     Window window(1166, 568);

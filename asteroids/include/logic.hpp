@@ -9,6 +9,7 @@
 
 #include "common.hpp"
 #include "timer.hpp"
+#include "graphics.hpp"
 
 struct Window;
 
@@ -18,13 +19,6 @@ struct WindowLogic {
     bool on_resize();
     bool on_mousemove();
 
-    void new_asteroids();
-    void update_asteroids();
-    void paint_asteroids();
-    void paint_controller();
-
-    void controller_move();
-
     WindowLogic(Window& window)
         : window(window)
         , norm_asteroid_x(0.5, 0.125) // Almost always (0, 1)
@@ -32,15 +26,40 @@ struct WindowLogic {
         , gen(rd()) {}
 
 private:
+    Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> CreateBackgroundGradient();
+
+    void new_asteroids();
+    void controller_move();
+
+    void update_motion();
+    void paint_asteroids();
+    void paint_controller();
+
+    Microsoft::WRL::ComPtr<ID2D1Bitmap> rocket_bitmap;
+
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_asteroid_brush;
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_controller_brush;
     Window& window;
 
+    D2D1_COLOR_F reference_bg {
+        .r = 0.10f - 0.075f,
+        .g = 0.10f - 0.075f,
+        .b = 0.20f - 0.075f,
+        .a = 1.f,
+    };
+
+    D2D1_SIZE_F size;
+    D2D1_COLOR_F side_bg;
+    D2D1_COLOR_F middle_bg;
+
     Timer background_timer;
     Timer new_asteroid_timer;
     Timer move_asteroid_timer;
+
+    f32 bound_left;
+    f32 bound_right;
 
     struct Asteroid {
         f32 x, y;

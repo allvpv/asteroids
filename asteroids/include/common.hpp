@@ -22,3 +22,4 @@ using f64 = double;
 inline bool key_up(int vkey) {
     return (GetAsyncKeyState(vkey) & 0x8000) != 0;
 }
+
