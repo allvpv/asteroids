@@ -10,7 +10,7 @@
 namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
     constexpr i32 BACKGROUND_INTERVAL = 4'000;
-    constexpr i32 ASTEROID_INTERVAL = 0'300;
+    constexpr i32 ASTEROID_INTERVAL = 0'600;
     constexpr i32 ASTEROID_RADIUS = 30;
 
     constexpr std::pair<i32, i32> CONTROLLER_ELLIPSE_RADIUS = { 30, 60 };
@@ -93,6 +93,38 @@ void WindowLogic::new_asteroids() {
     }
 }
 
+void WindowLogic::controller_move() {
+    bool keypress_left = key_up(VK_LEFT);
+    bool keypress_right = key_up(VK_RIGHT);
+
+    if (keypress_left) {
+        if (accel_left < 8)
+            accel_left += 0.125;
+        if (accel_right > 1)
+            accel_right = max(1.f, accel_right - 0.25);
+
+        controller_x += -accel_left + (accel_right - 1);
+    }
+    else if (keypress_right) {
+        if (accel_right < 8)
+            accel_right += 0.125;
+        if (accel_left > 1)
+            accel_left = max(1.f, accel_left - 0.25);
+
+        controller_x += accel_right + (1 - accel_left);
+    }
+    else {
+        if (accel_right > 1)
+            accel_right = max(1.f, accel_right - 0.25);
+
+        if (accel_left > 1)
+            accel_left = max(1.f, accel_left - 0.25);
+
+        controller_x += (accel_right - 1) + (1 - accel_left);
+    }
+
+}
+
 void WindowLogic::update_asteroids() {
     const i32 ticks = move_asteroid_timer.get_intervals_count(true);
 
@@ -103,7 +135,6 @@ void WindowLogic::update_asteroids() {
 
 void WindowLogic::paint_asteroids() {
     for (auto& a : asteroids) {
-        std::cout << "Painting ellipse(" << a.x << ", " << a.y << ")\n";
         auto e = D2D1::Ellipse(D2D1::Point2F(a.x, a.y), ASTEROID_RADIUS, ASTEROID_RADIUS);
         render_target->FillEllipse(e, temp_asteroid_brush.Get());
     }
@@ -125,7 +156,6 @@ bool WindowLogic::on_paint() {
     new_asteroid_timer.update();
     move_asteroid_timer.update();
 
-    std::wcout << L"OP\n";
     render_target->BeginDraw();
 
     f32 progress = 2.f * background_timer.get_interval_progress(true);
@@ -145,6 +175,8 @@ bool WindowLogic::on_paint() {
     update_asteroids();
     new_asteroids();
     paint_asteroids();
+
+    controller_move();
     paint_controller();
 
     render_target->EndDraw();

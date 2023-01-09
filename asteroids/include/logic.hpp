@@ -23,9 +23,11 @@ struct WindowLogic {
     void paint_asteroids();
     void paint_controller();
 
+    void controller_move();
+
     WindowLogic(Window& window)
         : window(window)
-        , norm_asteroid_x(0.5, 0.125) // For the most part (0, 1)
+        , norm_asteroid_x(0.5, 0.125) // Almost always (0, 1)
         , unif_asteroid_y(0., 1.)     // Always [0, 1)
         , gen(rd()) {}
 
@@ -44,6 +46,7 @@ private:
         f32 x, y;
     };
 
+    f32 accel_left = 1, accel_right = 1;
     f32 controller_x;
     f32 controller_y;
 

@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <cmath>
 
+#include <windows.h>
+
 using u64 = uint64_t;
 using i64 = int64_t;
 using u32 = uint32_t;
@@ -17,4 +19,6 @@ using f64 = double;
 #define PHYSICAL_PIXELS(logical, dpi) i32(ceil(f32((logical) * (dpi)) / 96.))
 #define LOGICAL_PIXELS(physical, dpi) i32(f32((physical) * 96) / f32(dpi))
 
-
+inline bool key_up(int vkey) {
+    return (GetAsyncKeyState(vkey) & 0x8000) != 0;
+}
