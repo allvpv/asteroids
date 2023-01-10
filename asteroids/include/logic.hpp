@@ -10,7 +10,7 @@
 #include "common.hpp"
 #include "timer.hpp"
 #include "graphics.hpp"
-#include "collision.hpp"
+#include "math.hpp"
 
 struct Window;
 
@@ -29,7 +29,7 @@ struct WindowLogic {
         , game_over(false) {}
 
 private:
-    Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> CreateBackgroundGradient();
+    Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> create_background_gradient();
 
     void new_asteroids();
     void new_bullets();
@@ -39,9 +39,13 @@ private:
     void bullets_move(const i32 ticks);
 
     void update_motion();
+
     void paint_asteroids();
     void paint_controller();
     void paint_bullets();
+
+    void collect_garbage();
+    void destroy_asteroids();
 
     bool is_there_collision();
 
@@ -49,26 +53,19 @@ private:
     void paint_contour_dbg(const ObjectContour& contour, const Vector& center);
 #endif // PAINT_CONTOUR_DBG
 
-    Microsoft::WRL::ComPtr<ID2D1Bitmap> rocket_bitmap;
-    Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_small_bitmap;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap> controller_bitmap;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_bitmap;
     Microsoft::WRL::ComPtr<ID2D1Bitmap> bullet_bitmap;
 
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
-    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_asteroid_brush;
-    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> temp_controller_brush;
+
+#ifdef PAINT_CONTOUR_DBG
+    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> contour_brush;
+#endif // PAINT_CONTOUR_DBG
     Window& window;
 
-    D2D1_COLOR_F reference_bg {
-        .r = 0.10f - 0.075f,
-        .g = 0.10f - 0.075f,
-        .b = 0.20f - 0.075f,
-        .a = 1.f,
-    };
-
     D2D1_SIZE_F size;
-    D2D1_COLOR_F side_bg;
-    D2D1_COLOR_F middle_bg;
 
     bool game_over = false;
     bool bullet_forbidden = false;
@@ -84,10 +81,14 @@ private:
     struct Asteroid {
         Vector pos;
         f32 speed;
+        bool destroyed;
+        f32 size;
     };
 
     struct Bullet {
         Vector pos;
+        bool destroyed;
+        f32 size;
     };
 
     f32 accel_left = 0, accel_right = 0;
@@ -96,6 +97,7 @@ private:
 
     std::deque<Asteroid> asteroids;
     std::deque<Bullet> bullets;
+
 
     std::uniform_real_distribution<double> unif_speed;
     std::normal_distribution<double> norm_asteroid_x;

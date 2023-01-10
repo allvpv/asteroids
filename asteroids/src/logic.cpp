@@ -7,21 +7,22 @@
 #include "common.hpp"
 #include "logic.hpp"
 #include "window.hpp"
-#include "collision.hpp"
+#include "math.hpp"
+#include "spirits.hpp"
 
 namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
     constexpr i32 BACKGROUND_INTERVAL = 4'000;
     constexpr i32 ASTEROID_INTERVAL = 0'600;
     constexpr i32 NEW_BULLET_INTERVAL = 0'200;
-
     constexpr f32 BULLET_SPEED = 3;
 
-    constexpr std::pair<i32, i32> CONTROLLER_ELLIPSE_RADIUS = { 30, 60 };
-
-    const wchar_t* rocket_file = L"rocket.png";
-    const wchar_t* asteroid_file = L"asteroid_small.png";
-    const wchar_t* bullet_file = L"bullet.png";
+    constexpr D2D1_COLOR_F reference_bg {
+        .r = 0.10f - 0.075f,
+        .g = 0.10f - 0.075f,
+        .b = 0.20f - 0.075f,
+        .a = 1.f,
+    };
 
     namespace ErrorCollection {
         void com_crash(HRESULT hr) {
@@ -53,47 +54,6 @@ namespace {
                        << _com_error(hr).ErrorMessage() << L'\n';
         }
     }
-
-    const ObjectContour controller_contour {
-        .vertices = {
-            { 0.0, -56.0 },
-            { 19.0, -25.5 },
-            { 22.0, 11.5 },
-            { 30.5, 24.0 },
-            { 29.5, 46.5 },
-            { 14.5, 37.5 },
-            { 8.0, 53.0 },
-            { -8.5, 53.0 },
-            { -15.0, 37.5 },
-            { -29.0, 45.5 },
-            { -30.5, 24.0 },
-            { -22.0, 11.0 },
-            { -19.0, -24.5 },
-        },
-        .half_of_sides = { 32.0, 56.0 },
-    };
-
-    const ObjectContour asteroid_contour {
-        .vertices = {
-            { -28.2, -35.45 },
-            { 15.6, -40.85 },
-            { 37.8, -23.65 },
-            { 39.0, -3.85 },
-            { 44.0, 8.15 },
-            { 31.0, 37.35 },
-            { -11.2, 38.75 },
-            { -29.6, 29.75 },
-            { -45.4, -2.25 },
-        },
-        .half_of_sides = { 50.0, 43.85 },
-    };
-
-    const ObjectContour bullet_contour {
-        .vertices = {
-            { 0.f, 0.f },
-        },
-        .half_of_sides = { 0.f, 0.f },
-    };
 }
 
 bool WindowLogic::Init() {
@@ -131,19 +91,14 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &temp_asteroid_brush);
+#ifdef PAINT_CONTOUR_DBG
+    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &contour_brush);
 
-    if (hr != S_OK || !temp_asteroid_brush) {
+    if (hr != S_OK || !contour_brush) {
         ErrorCollection::brush_crash(hr);
         return false;
     }
-
-    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(0.f, 1.f, 0.f), &temp_controller_brush);
-
-    if (hr != S_OK || !temp_controller_brush) {
-        ErrorCollection::brush_crash(hr);
-        return false;
-    }
+#endif // PAINT_CONTOUR_DBG
 
     ComPtr<IWICImagingFactory2> imaging_factory;
 
@@ -169,11 +124,13 @@ bool WindowLogic::Init() {
         } else {
             bitmap = result.second;
         }
+
+        return true;
     };
 
-    if (!load_bitmap(rocket_file, rocket_bitmap) ||
-        !load_bitmap(asteroid_file, asteroid_small_bitmap) ||
-        !load_bitmap(bullet_file, bullet_bitmap)) {
+    if (!load_bitmap(controller_data.filename, controller_bitmap) ||
+        !load_bitmap(asteroid_data.filename, asteroid_bitmap) ||
+        !load_bitmap(bullet_data.filename, bullet_bitmap)) {
         return false;
     }
 
@@ -188,14 +145,13 @@ void WindowLogic::new_bullets() {
         i32 ticks = new_bullet_timer.get_intervals_count(false);
 
         if (ticks) {
-            std::wcout << L"Bullet now allowed\n";
             bullet_forbidden = false;
         }
     }
 
     bool space_press = key_up(VK_SPACE);
 
-    if (bullet_forbidden || !space_press)
+    if (bullet_forbidden || !space_press || game_over)
         return;
 
     bullet_forbidden = true;
@@ -203,10 +159,12 @@ void WindowLogic::new_bullets() {
 
     Vector bullet_pos { controller_pos };
 
-    bullet_pos.y -= controller_contour.half_of_sides.y;
+    bullet_pos.y -= controller_data.contour.half_of_sides.y;
 
     bullets.push_front(Bullet {
         .pos = bullet_pos,
+        .destroyed = false,
+        .size = 1.f,
     });
 }
 
@@ -214,7 +172,7 @@ void WindowLogic::new_asteroids() {
     const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
     if (ticks) {
-        const f32 asteroid_radius = asteroid_contour.half_of_sides.y;
+        const f32 asteroid_radius = asteroid_data.contour.half_of_sides.y;
 
         const f64 shift_x = norm_asteroid_x(gen);
         const f64 shift_y = unif_asteroid_y(gen);
@@ -227,17 +185,22 @@ void WindowLogic::new_asteroids() {
         asteroids.push_front(Asteroid {
             .pos = Vector(x_pos, y_pos),
             .speed = speed,
+            .destroyed = false,
+            .size = 1.f,
         });
     }
 }
 
 bool WindowLogic::is_there_collision() {
     for (const auto& a : asteroids) {
+        if (a.destroyed)
+            continue;
+
         if (a.pos.y < size.height / 2)
             continue;
 
-        if (intersect(asteroid_contour, controller_contour, a.pos, controller_pos)) {
-            controller_downspeed = a.speed;
+        if (intersect(asteroid_data.contour, controller_data.contour, a.pos, controller_pos)) {
+            controller_downspeed = 3.f * a.speed;
             return true;
         }
     }
@@ -311,7 +274,7 @@ void WindowLogic::update_motion() {
 }
 
 void WindowLogic::paint_controller() {
-    D2D1_SIZE_F bmp_size = rocket_bitmap->GetSize();
+    D2D1_SIZE_F bmp_size = controller_bitmap->GetSize();
     bmp_size.width /= 2;
     bmp_size.height /= 2;
 
@@ -320,7 +283,7 @@ void WindowLogic::paint_controller() {
 
     // Draw a bitmap.
     render_target->DrawBitmap(
-        rocket_bitmap.Get(),
+        controller_bitmap.Get(),
         D2D1::RectF(
             controller_pos.x - hlfw_x,
             controller_pos.y - hlfw_y,
@@ -330,7 +293,7 @@ void WindowLogic::paint_controller() {
     );
 
 #ifdef PAINT_CONTOUR_DBG
-    paint_contour_dbg(controller_contour, controller_pos);
+    paint_contour_dbg(controller_data.contour, controller_pos);
 #endif // PAINT_CONTOUR_DBG
 }
 
@@ -346,12 +309,74 @@ void WindowLogic::paint_contour_dbg(const ObjectContour& contour, const Vector& 
         render_target->DrawLine(
             D2D1_POINT_2F(suma.x, suma.y),
             D2D1_POINT_2F(sumb.x, sumb.y),
-            temp_asteroid_brush.Get(),
+            contour_brush.Get(),
             2.,
             NULL);
     }
 }
 #endif // PAINT_CONTOUR_DBG
+
+void WindowLogic::collect_garbage() {
+    while (!asteroids.empty()) {
+        const Asteroid& last = asteroids.back();
+
+        bool outside_view = last.pos.y > size.height + asteroid_data.contour.half_of_sides.y;
+        bool very_small = last.size < 0.1f;
+
+        if (outside_view || very_small)
+            asteroids.pop_back();
+        else
+            break;
+    }
+
+    while (!bullets.empty()) {
+        const Bullet& last = bullets.back();
+
+        bool outside_view = last.pos.y + bullet_data.contour.half_of_sides.y < 0;
+        bool very_small = last.size < 0.1f;
+
+        if (outside_view || very_small)
+            bullets.pop_back();
+        else
+            break;
+    }
+
+    std::wcout << L"GC: asters: " << asteroids.size()
+               << L"bullets: " << bullets.size() << L'\n';
+}
+
+void WindowLogic::paint_asteroids() {
+    D2D1_SIZE_F bmp_size = asteroid_bitmap->GetSize();
+    bmp_size.width /= 10;
+    bmp_size.height /= 10;
+
+    f32 hlfw_x = bmp_size.width / 2;
+    f32 hlfw_y = bmp_size.height / 2;
+
+    for (auto& a : asteroids) {
+        f32 this_hlfw_x = hlfw_x;
+        f32 this_hlfw_y = hlfw_y;
+
+        if (a.destroyed) {
+            this_hlfw_x *= a.size;
+            this_hlfw_y *= a.size;
+        }
+
+        render_target->DrawBitmap(
+            asteroid_bitmap.Get(),
+            D2D1::RectF(
+                a.pos.x - this_hlfw_x,
+                a.pos.y - this_hlfw_y,
+                a.pos.x + this_hlfw_x,
+                a.pos.y + this_hlfw_y
+            )
+        );
+
+#ifdef PAINT_CONTOUR_DBG
+        paint_contour_dbg(asteroid_data.contour, a.pos);
+#endif // PAINT_CONTOUR_DBG
+    }
+}
 
 void WindowLogic::paint_bullets() {
     D2D1_SIZE_F bmp_size = bullet_bitmap->GetSize();
@@ -362,68 +387,51 @@ void WindowLogic::paint_bullets() {
     f32 hlfw_y = bmp_size.height / 2;
 
     for (const auto& bullet : bullets) {
+        f32 this_hlfw_x = hlfw_x;
+        f32 this_hlfw_y = hlfw_y;
+
+        if (bullet.destroyed) {
+            this_hlfw_x *= bullet.size;
+            this_hlfw_y *= bullet.size;
+        }
+
         // Draw a bitmap.
         render_target->DrawBitmap(
             bullet_bitmap.Get(),
             D2D1::RectF(
-                bullet.pos.x - hlfw_x,
-                bullet.pos.y - hlfw_y,
-                bullet.pos.x + hlfw_x,
-                bullet.pos.y + hlfw_y
+                bullet.pos.x - this_hlfw_x,
+                bullet.pos.y - this_hlfw_y,
+                bullet.pos.x + this_hlfw_x,
+                bullet.pos.y + this_hlfw_y
             )
         );
 
 #ifdef PAINT_CONTOUR_DBG
-        paint_contour_dbg(bullet_contour, b.pos);
+        paint_contour_dbg(bullet_data.contour, bullet.pos);
 #endif // PAINT_CONTOUR_DBG
-    }
-
-    while (!bullets.empty()) {
-        const Bullet& last = bullets.back();
-
-        if (last.pos.y + bullet_contour.half_of_sides.y < 0)
-            bullets.pop_back();
-        else
-            break;
     }
 }
 
-void WindowLogic::paint_asteroids() {
-    D2D1_SIZE_F bmp_size = asteroid_small_bitmap->GetSize();
-    bmp_size.width /= 10;
-    bmp_size.height /= 10;
+Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_background_gradient() {
+    auto side_bg = reference_bg;
+    auto middle_bg = reference_bg;
 
-    f32 hlfw_x = bmp_size.width / 2;
-    f32 hlfw_y = bmp_size.height / 2;
+    f32 penalty = max(bound_left - controller_pos.x, controller_pos.x - bound_right);
 
-    for (auto& a : asteroids) {
-        // Draw a bitmap.
-        render_target->DrawBitmap(
-            asteroid_small_bitmap.Get(),
-            D2D1::RectF(
-                a.pos.x - hlfw_x,
-                a.pos.y - hlfw_y,
-                a.pos.x + hlfw_x,
-                a.pos.y + hlfw_y
-            )
-        );
+    if (penalty > 0)
+        side_bg.r += (penalty / bound_left);
+    else {
+        f32 reward = controller_pos.x - size.width / 2;
 
-#ifdef PAINT_CONTOUR_DBG
-        paint_contour_dbg(asteroid_contour, a.pos);
-#endif // PAINT_CONTOUR_DBG
+        if (reward < 0)
+            reward *= -1;
+
+        f32 reward_bound = size.width / 5;
+
+        if (reward < reward_bound)
+            middle_bg.b += 0.3f * (1.f - reward / reward_bound);
     }
 
-    while (!asteroids.empty()) {
-        const Asteroid& last = asteroids.back();
-
-        if (last.pos.y > size.height + asteroid_contour.half_of_sides.y)
-            asteroids.pop_back();
-        else
-            break;
-    }
-}
-
-Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::CreateBackgroundGradient() {
     D2D1_GRADIENT_STOP gradient_stops_arr[3];
 
     gradient_stops_arr[0].color = side_bg;
@@ -465,6 +473,38 @@ Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::CreateBackgroundGr
     return gradient_brush;
 }
 
+void WindowLogic::destroy_asteroids() {
+    for (auto& a : asteroids) {
+        if (a.destroyed) {
+            if (a.size > 0)
+                a.size -= 0.05f;
+        }
+    }
+
+    for (auto& b : bullets) {
+        if (b.destroyed) {
+            if (b.size > 0)
+                b.size -= 0.05f;
+        }
+    }
+
+    for (auto& a : asteroids) {
+        if (a.destroyed)
+            continue;
+
+        for (auto& b : bullets) {
+            if (b.destroyed)
+                continue;
+
+            if (intersect(asteroid_data.contour, bullet_data.contour, a.pos, b.pos)) {
+                a.destroyed = true;
+                b.destroyed = true;
+                break;
+            }
+        }
+    }
+}
+
 bool WindowLogic::on_paint() {
     size = render_target->GetSize();
 
@@ -477,54 +517,36 @@ bool WindowLogic::on_paint() {
     new_asteroids();
     new_bullets();
 
-    side_bg = reference_bg;
-    middle_bg = reference_bg;
-
-    f32 penalty = max(bound_left - controller_pos.x, controller_pos.x - bound_right);
-
-    if (penalty > 0)
-        side_bg.r += (penalty / bound_left);
-    else {
-        f32 reward = controller_pos.x - size.width / 2;
-
-        if (reward < 0)
-            reward *= -1;
-
-        f32 reward_bound = size.width / 5;
-
-        if (reward < reward_bound)
-            middle_bg.b += 0.3f * (1.f - reward / reward_bound);
-    }
-
-    D2D1_RECT_F plane = {
-        .left = 0.,
-        .top = 0.,
-        .right = size.width,
-        .bottom = size.height,
-    };
-
     if (game_over)
         std::wcout << L"Game Over!\n";
 
-    render_target->BeginDraw();
+    auto bg_gradient = create_background_gradient();
 
-    if (!game_over) {
-        game_over = is_there_collision();
-    }
-
-    auto bg_grad = CreateBackgroundGradient();
-
-    if (!bg_grad) {
+    if (!bg_gradient) {
         std::wcout << L"Cannot create background gradient\n";
         return false;
     }
 
-    render_target->FillRectangle(&plane, bg_grad.Get());
+    if (!game_over)
+        game_over = is_there_collision();
+
+    destroy_asteroids();
+    collect_garbage();
+
+    // Proper drawing.
+    render_target->BeginDraw();
+
+    // Paint background.
+    render_target->FillRectangle(D2D1_RECT_F {
+        .left = 0.,
+        .top = 0.,
+        .right = size.width,
+        .bottom = size.height,
+    }, bg_gradient.Get());
 
     paint_controller();
     paint_asteroids();
     paint_bullets();
-
 
     render_target->EndDraw();
 

@@ -6,7 +6,7 @@ std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTar
                                                               IWICImagingFactory2& imaging_factory,
                                                               const wchar_t* uri) {
     HRESULT hr;
-    ComPtr<IWICBitmapDecoder> decoderr;
+    ComPtr<IWICBitmapDecoder> decoder;
     ComPtr<IWICBitmapFrameDecode> frame_decoder;
     ComPtr<IWICFormatConverter> converter;
     ComPtr<ID2D1Bitmap> bitmap;
@@ -16,13 +16,13 @@ std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTar
         nullptr,
         GENERIC_READ,
         WICDecodeMetadataCacheOnDemand,
-        &decoderr
+        &decoder
     );
 
-    if (hr != S_OK || !decoderr)
+    if (hr != S_OK || !decoder)
         return { hr, {} };
 
-    hr = decoderr->GetFrame(0, &frame_decoder);
+    hr = decoder->GetFrame(0, &frame_decoder);
 
     if (hr != S_OK || !frame_decoder)
         return { hr, {} };
