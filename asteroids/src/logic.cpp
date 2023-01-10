@@ -13,12 +13,15 @@ namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
     constexpr i32 BACKGROUND_INTERVAL = 4'000;
     constexpr i32 ASTEROID_INTERVAL = 0'600;
-    constexpr i32 ASTEROID_RADIUS = 40;
+    constexpr i32 NEW_BULLET_INTERVAL = 0'200;
+
+    constexpr f32 BULLET_SPEED = 3;
 
     constexpr std::pair<i32, i32> CONTROLLER_ELLIPSE_RADIUS = { 30, 60 };
 
     const wchar_t* rocket_file = L"rocket.png";
     const wchar_t* asteroid_file = L"asteroid_small.png";
+    const wchar_t* bullet_file = L"bullet.png";
 
     namespace ErrorCollection {
         void com_crash(HRESULT hr) {
@@ -69,6 +72,7 @@ namespace {
         },
         .half_of_sides = { 32.0, 56.0 },
     };
+
     const ObjectContour asteroid_contour {
         .vertices = {
             { -28.2, -35.45 },
@@ -82,6 +86,13 @@ namespace {
             { -45.4, -2.25 },
         },
         .half_of_sides = { 50.0, 43.85 },
+    };
+
+    const ObjectContour bullet_contour {
+        .vertices = {
+            { 0.f, 0.f },
+        },
+        .half_of_sides = { 0.f, 0.f },
     };
 }
 
@@ -161,24 +172,55 @@ bool WindowLogic::Init() {
     };
 
     if (!load_bitmap(rocket_file, rocket_bitmap) ||
-        !load_bitmap(asteroid_file, asteroid_small_bitmap)) {
+        !load_bitmap(asteroid_file, asteroid_small_bitmap) ||
+        !load_bitmap(bullet_file, bullet_bitmap)) {
         return false;
     }
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
-           move_asteroid_timer.Init(MOVE_INTERVAL);
+           move_timer.Init(MOVE_INTERVAL) &&
+           new_bullet_timer.Init(NEW_BULLET_INTERVAL);
+}
+
+void WindowLogic::new_bullets() {
+    if (bullet_forbidden) {
+        i32 ticks = new_bullet_timer.get_intervals_count(false);
+
+        if (ticks) {
+            std::wcout << L"Bullet now allowed\n";
+            bullet_forbidden = false;
+        }
+    }
+
+    bool space_press = key_up(VK_SPACE);
+
+    if (bullet_forbidden || !space_press)
+        return;
+
+    bullet_forbidden = true;
+    new_bullet_timer.start_new_interval();
+
+    Vector bullet_pos { controller_pos };
+
+    bullet_pos.y -= controller_contour.half_of_sides.y;
+
+    bullets.push_front(Bullet {
+        .pos = bullet_pos,
+    });
 }
 
 void WindowLogic::new_asteroids() {
     const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
     if (ticks) {
+        const f32 asteroid_radius = asteroid_contour.half_of_sides.y;
+
         const f64 shift_x = norm_asteroid_x(gen);
         const f64 shift_y = unif_asteroid_y(gen);
 
         const f32 x_pos = shift_x * size.width;
-        const f32 y_pos = -(shift_y * (size.height - 2*ASTEROID_RADIUS) + ASTEROID_RADIUS);
+        const f32 y_pos = -(shift_y * (size.height - 2 * asteroid_radius) + asteroid_radius);
 
         const f32 speed = unif_speed(gen);
 
@@ -246,15 +288,25 @@ void WindowLogic::controller_move(const i32 ticks) {
     controller_pos.x += accel_right - accel_left;
 }
 
-void WindowLogic::update_motion() {
-    const i32 ticks = move_asteroid_timer.get_intervals_count(true);
-
+void WindowLogic::asteroids_move(const i32 ticks) {
     for (auto& a : asteroids) {
         a.pos.y += ticks * a.speed;
     }
+}
+
+void WindowLogic::bullets_move(const i32 ticks) {
+    for (auto& b : bullets) {
+        b.pos.y -= ticks * BULLET_SPEED;
+    }
+}
+
+void WindowLogic::update_motion() {
+    const i32 ticks = move_timer.get_intervals_count(true);
 
     if (ticks) {
+        asteroids_move(ticks);
         controller_move(ticks);
+        bullets_move(ticks);
     }
 }
 
@@ -301,6 +353,41 @@ void WindowLogic::paint_contour_dbg(const ObjectContour& contour, const Vector& 
 }
 #endif // PAINT_CONTOUR_DBG
 
+void WindowLogic::paint_bullets() {
+    D2D1_SIZE_F bmp_size = bullet_bitmap->GetSize();
+    bmp_size.width /= 4;
+    bmp_size.height /= 4;
+
+    f32 hlfw_x = bmp_size.width / 2;
+    f32 hlfw_y = bmp_size.height / 2;
+
+    for (const auto& bullet : bullets) {
+        // Draw a bitmap.
+        render_target->DrawBitmap(
+            bullet_bitmap.Get(),
+            D2D1::RectF(
+                bullet.pos.x - hlfw_x,
+                bullet.pos.y - hlfw_y,
+                bullet.pos.x + hlfw_x,
+                bullet.pos.y + hlfw_y
+            )
+        );
+
+#ifdef PAINT_CONTOUR_DBG
+        paint_contour_dbg(bullet_contour, b.pos);
+#endif // PAINT_CONTOUR_DBG
+    }
+
+    while (!bullets.empty()) {
+        const Bullet& last = bullets.back();
+
+        if (last.pos.y + bullet_contour.half_of_sides.y < 0)
+            bullets.pop_back();
+        else
+            break;
+    }
+}
+
 void WindowLogic::paint_asteroids() {
     D2D1_SIZE_F bmp_size = asteroid_small_bitmap->GetSize();
     bmp_size.width /= 10;
@@ -329,7 +416,7 @@ void WindowLogic::paint_asteroids() {
     while (!asteroids.empty()) {
         const Asteroid& last = asteroids.back();
 
-        if (last.pos.y > size.height + ASTEROID_RADIUS)
+        if (last.pos.y > size.height + asteroid_contour.half_of_sides.y)
             asteroids.pop_back();
         else
             break;
@@ -383,10 +470,12 @@ bool WindowLogic::on_paint() {
 
     background_timer.update();
     new_asteroid_timer.update();
-    move_asteroid_timer.update();
+    new_bullet_timer.update();
+    move_timer.update();
 
     update_motion();
     new_asteroids();
+    new_bullets();
 
     side_bg = reference_bg;
     middle_bg = reference_bg;
@@ -434,6 +523,7 @@ bool WindowLogic::on_paint() {
 
     paint_controller();
     paint_asteroids();
+    paint_bullets();
 
 
     render_target->EndDraw();

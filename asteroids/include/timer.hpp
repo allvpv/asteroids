@@ -34,7 +34,8 @@ struct Timer {
         return f32(modulo) / f32(interval);
     }
 
-    // How many intervals elapsed since last call? This method does not start a new interval.
+    // How many intervals elapsed since last call? This method does not start a
+    // new interval (the unfinished one continues).
     i32 get_intervals_count(bool forget_elapsed_intervals) {
         i64 delta = last_time - reference_time;
         i64 count = delta / interval;
@@ -43,6 +44,10 @@ struct Timer {
             reference_time += count * interval;
 
         return i32 (count);
+    }
+
+    void start_new_interval() {
+        reference_time = last_time;
     }
 
 protected:
