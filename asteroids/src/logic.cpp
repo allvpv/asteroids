@@ -6,16 +6,19 @@
 
 #include "logic.hpp"
 #include "window.hpp"
+#include "collision.hpp"
 
 namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
     constexpr i32 BACKGROUND_INTERVAL = 4'000;
     constexpr i32 ASTEROID_INTERVAL = 0'600;
-    constexpr i32 ASTEROID_RADIUS = 30;
+    constexpr i32 ASTEROID_RADIUS = 40;
 
     constexpr std::pair<i32, i32> CONTROLLER_ELLIPSE_RADIUS = { 30, 60 };
 
     const wchar_t* rocket_file = L"C:\\Dane\\directx_rust\\asteroids\\build\\rocket.png";
+    const wchar_t* asteroid_small_file = L"C:\\Dane\\directx_rust\\asteroids\\build\\asteroid_small.png";
+    const wchar_t* asteroid_big_file = L"C:\\Dane\\directx_rust\\asteroids\\build\\asteroid_big.png";
 
     namespace ErrorCollection {
         void com_crash(HRESULT hr) {
@@ -43,11 +46,43 @@ namespace {
         }
 
         void bitmap_crash(const wchar_t* filename, HRESULT hr) {
-            std::wcout << L"umieram kurwa\n";
             std::wcout << L"Failed to load bitmap (" << filename << L"): "
                        << _com_error(hr).ErrorMessage() << L'\n';
         }
     }
+
+    const ObjectContour controller_contour {
+        .vertices = {
+            { 0.0, -56.0 },
+            { 19.0, -25.5 },
+            { 22.0, 11.5 },
+            { 30.5, 24.0 },
+            { 29.5, 46.5 },
+            { 14.5, 37.5 },
+            { 8.0, 53.0 },
+            { -8.5, 53.0 },
+            { -15.0, 37.5 },
+            { -29.0, 45.5 },
+            { -30.5, 24.0 },
+            { -22.0, 11.0 },
+            { -19.0, -24.5 },
+        },
+        .half_of_sides = { 32.0, 56.0 },
+    };
+    const ObjectContour asteroid_contour {
+        .vertices = {
+            { -28.2, -35.45 },
+            { 15.6, -40.85 },
+            { 37.8, -23.65 },
+            { 39.0, -3.85 },
+            { 44.0, 8.15 },
+            { 31.0, 37.35 },
+            { -11.2, 38.75 },
+            { -29.6, 29.75 },
+            { -45.4, -2.25 },
+        },
+        .half_of_sides = { 50.0, 43.85 },
+    };
 }
 
 bool WindowLogic::Init() {
@@ -72,8 +107,8 @@ bool WindowLogic::Init() {
 
     D2D1_SIZE_U size = D2D1::SizeU(window.get_inner_width(), window.get_inner_height());
 
-    controller_x = size.width / 2;
-    controller_y = size.height - 60;
+    controller_pos.x = size.width / 2;
+    controller_pos.y = size.height - 60;
 
     hr = d2d_factory->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
@@ -114,14 +149,21 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    auto result = load_bitmap_from_file(*render_target.Get(), *imaging_factory.Get(), rocket_file);
+    auto load_bitmap = [&](const wchar_t* fname, Microsoft::WRL::ComPtr<ID2D1Bitmap>& bitmap) {
+        auto result = load_bitmap_from_file(*render_target.Get(), *imaging_factory.Get(), fname);
 
-    if (result.first != S_OK || !result.second) {
-        ErrorCollection::bitmap_crash(rocket_file, hr);
+        if (result.first != S_OK || !result.second) {
+            ErrorCollection::bitmap_crash(fname, result.first);
+            return false;
+        } else {
+            bitmap = result.second;
+        }
+    };
+
+    if (!load_bitmap(rocket_file, rocket_bitmap) ||
+        !load_bitmap(asteroid_small_file, asteroid_small_bitmap) ||
+        !load_bitmap(asteroid_big_file, asteroid_big_bitmap))
         return false;
-    } else {
-        rocket_bitmap = result.second;
-    }
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
@@ -129,10 +171,24 @@ bool WindowLogic::Init() {
 }
 
 void WindowLogic::paint_controller() {
-    auto [width, height] = CONTROLLER_ELLIPSE_RADIUS;
+    D2D1_SIZE_F bmp_size = rocket_bitmap->GetSize();
+    bmp_size.width /= 2;
+    bmp_size.height /= 2;
 
-    auto e = D2D1::Ellipse(D2D1::Point2F(controller_x, controller_y), width, height);
-    render_target->FillEllipse(e, temp_controller_brush.Get());
+    D2D1_POINT_2F upperLeftCorner = D2D1::Point2F(100.f, 10.f);
+
+    f32 hlfw = bmp_size.width / 2;
+
+    // Draw a bitmap.
+    render_target->DrawBitmap(
+        rocket_bitmap.Get(),
+        D2D1::RectF(
+            controller_pos.x - hlfw,
+            size.height - 20,
+            controller_pos.x + hlfw,
+            size.height - bmp_size.height - 20
+        )
+    );
 }
 
 void WindowLogic::new_asteroids() {
@@ -145,11 +201,25 @@ void WindowLogic::new_asteroids() {
         const f32 x_pos = shift_x * size.width;
         const f32 y_pos = -(shift_y * (size.height - 2*ASTEROID_RADIUS) + ASTEROID_RADIUS);
 
+        const f32 speed = unif_speed(gen);
+
         asteroids.push_front(Asteroid {
-            .x = x_pos,
-            .y = y_pos,
+            .pos = Vector(x_pos, y_pos),
+            .speed = speed,
         });
     }
+}
+
+bool WindowLogic::is_there_collision() {
+    for (auto& a : asteroids) {
+        if (a.pos.y < size.height / 2)
+            continue;
+
+        if (intersect(asteroid_contour, controller_contour, a.pos, controller_pos))
+            return true;
+    }
+
+    return false;
 }
 
 void WindowLogic::controller_move() {
@@ -174,11 +244,11 @@ void WindowLogic::controller_move() {
     bound_left = size.width / 5;
     bound_right = size.width - bound_left;
 
-    if (keypress_left && controller_x > bound_left) {
+    if (keypress_left && controller_pos.x > bound_left) {
         accelerate(accel_left);
         decelerate(accel_right, 1.f);
     }
-    else if (keypress_right && controller_x < bound_right) {
+    else if (keypress_right && controller_pos.x < bound_right) {
         accelerate(accel_right);
         decelerate(accel_left, 1.f);
     }
@@ -187,14 +257,14 @@ void WindowLogic::controller_move() {
         decelerate(accel_left, 0.75f);
     }
 
-    controller_x += accel_right - accel_left;
+    controller_pos.x += accel_right - accel_left;
 }
 
 void WindowLogic::update_motion() {
     const i32 ticks = move_asteroid_timer.get_intervals_count(true);
 
     for (auto& a : asteroids) {
-        a.y += ticks;
+        a.pos.y += ticks * a.speed;
     }
 
     if (ticks) {
@@ -203,15 +273,30 @@ void WindowLogic::update_motion() {
 }
 
 void WindowLogic::paint_asteroids() {
+    D2D1_SIZE_F bmp_size = asteroid_small_bitmap->GetSize();
+    bmp_size.width /= 10;
+    bmp_size.height /= 10;
+
+    f32 hlfw_x = bmp_size.width / 2;
+    f32 hlfw_y = bmp_size.height / 2;
+
     for (auto& a : asteroids) {
-        auto e = D2D1::Ellipse(D2D1::Point2F(a.x, a.y), ASTEROID_RADIUS, ASTEROID_RADIUS);
-        render_target->FillEllipse(e, temp_asteroid_brush.Get());
+        // Draw a bitmap.
+        render_target->DrawBitmap(
+            asteroid_small_bitmap.Get(),
+            D2D1::RectF(
+                a.pos.x - hlfw_x,
+                a.pos.y - hlfw_y,
+                a.pos.x + hlfw_x,
+                a.pos.y + hlfw_y
+            )
+        );
     }
 
     while (!asteroids.empty()) {
         const Asteroid& last = asteroids.back();
 
-        if (last.y > size.height + ASTEROID_RADIUS)
+        if (last.pos.y > size.height + ASTEROID_RADIUS)
             asteroids.pop_back();
         else
             break;
@@ -280,12 +365,12 @@ bool WindowLogic::on_paint() {
     side_bg = reference_bg;
     middle_bg = reference_bg;
 
-    f32 penalty = max(bound_left - controller_x, controller_x - bound_right);
+    f32 penalty = max(bound_left - controller_pos.x, controller_pos.x - bound_right);
 
     if (penalty > 0)
         side_bg.r += (penalty / bound_left);
     else {
-        f32 reward = controller_x - size.width / 2;
+        f32 reward = controller_pos.x - size.width / 2;
 
         if (reward < 0)
             reward *= -1;
@@ -295,8 +380,6 @@ bool WindowLogic::on_paint() {
         if (reward < reward_bound)
             middle_bg.b += 0.3f * (1.f - reward / reward_bound);
     }
-
-    std::wcout << L"malu2\n";
 
     D2D1_RECT_F plane = {
         .left = 0.,
@@ -309,16 +392,18 @@ bool WindowLogic::on_paint() {
     auto bg_grad = CreateBackgroundGradient();
 
     if (!bg_grad) {
-        std::wcout << "Cannot create background gradient\n";
+        std::wcout << L"Cannot create background gradient\n";
         return false;
     }
+
+    if (is_there_collision())
+        std::wcout << L"COLL!\n";
 
     render_target->FillRectangle(&plane, bg_grad.Get());
 
     paint_asteroids();
     paint_controller();
     render_target->EndDraw();
-    std::wcout << L"malu3\n";
 
     return true;
 }

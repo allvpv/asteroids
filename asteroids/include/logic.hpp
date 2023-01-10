@@ -10,6 +10,7 @@
 #include "common.hpp"
 #include "timer.hpp"
 #include "graphics.hpp"
+#include "collision.hpp"
 
 struct Window;
 
@@ -23,6 +24,7 @@ struct WindowLogic {
         : window(window)
         , norm_asteroid_x(0.5, 0.125) // Almost always (0, 1)
         , unif_asteroid_y(0., 1.)     // Always [0, 1)
+        , unif_speed(1., 1.5)
         , gen(rd()) {}
 
 private:
@@ -35,7 +37,11 @@ private:
     void paint_asteroids();
     void paint_controller();
 
+    bool is_there_collision();
+
     Microsoft::WRL::ComPtr<ID2D1Bitmap> rocket_bitmap;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_small_bitmap;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_big_bitmap;
 
     Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
     Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
@@ -62,15 +68,16 @@ private:
     f32 bound_right;
 
     struct Asteroid {
-        f32 x, y;
+        Vector pos;
+        f32 speed;
     };
 
     f32 accel_left = 0, accel_right = 0;
-    f32 controller_x;
-    f32 controller_y;
+    Vector controller_pos;
 
     std::deque<Asteroid> asteroids;
 
+    std::uniform_real_distribution<double> unif_speed;
     std::normal_distribution<double> norm_asteroid_x;
     std::uniform_real_distribution<double> unif_asteroid_y;
 

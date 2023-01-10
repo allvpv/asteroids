@@ -13,7 +13,7 @@ std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTar
 
     hr = imaging_factory.CreateDecoderFromFilename(
         uri,
-        NULL,
+        nullptr,
         GENERIC_READ,
         WICDecodeMetadataCacheOnDemand,
         &decoderr
@@ -36,7 +36,7 @@ std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTar
         frame_decoder.Get(),
         GUID_WICPixelFormat32bppPBGRA,
         WICBitmapDitherTypeNone,
-        NULL,
+        nullptr,
         0.f,
         WICBitmapPaletteTypeMedianCut
     );

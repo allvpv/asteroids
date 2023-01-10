@@ -26,7 +26,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
 
     // Create the window.
     HWND hwnd = CreateWindowEx(
-        0,          // Optional window styles.
+        WS_EX_COMPOSITED, // Extended window style.
         class_name, // Window class
         title,      // Window title
         WS_OVERLAPPEDWINDOW, // Window style
@@ -71,7 +71,7 @@ bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
     );
 
     if (!result) {
-        std::wcout << L"Cannot get size of window for (" << inner_width << L", " << inner_height
+        std::wcout << L"Cannot get size of the window for (" << inner_width << L", " << inner_height
                    << L") inner area dimensions\n";
         return false;
     }
