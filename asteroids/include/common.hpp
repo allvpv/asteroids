@@ -19,6 +19,8 @@ using f64 = double;
 #define PHYSICAL_PIXELS(logical, dpi) i32(ceil(f32((logical) * (dpi)) / 96.))
 #define LOGICAL_PIXELS(physical, dpi) i32(f32((physical) * 96) / f32(dpi))
 
+// #define PAINT_CONTOUR_DBG
+
 inline bool key_up(int vkey) {
     return (GetAsyncKeyState(vkey) & 0x8000) != 0;
 }
