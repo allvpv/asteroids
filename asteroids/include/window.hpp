@@ -10,7 +10,7 @@ struct Window {
         , logic(*this) {}
 
     bool Init(const wchar_t* class_name, const wchar_t* title);
-    bool ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi);
+    bool ComputeOuterSize(i32 &outer_width, i32 &outer_height);
     bool SetOuterSize(i32 outer_width, i32 outer_height, u32 dpi);
     void MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam);
 

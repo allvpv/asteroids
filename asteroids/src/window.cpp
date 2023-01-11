@@ -50,7 +50,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     u32 dpi = GetDpiForWindow(handle);
     i32 outer_width, outer_height;
 
-    ComputeOuterSize(outer_width, outer_height, dpi);
+    ComputeOuterSize(outer_width, outer_height);
     SetOuterSize(outer_width, outer_height, dpi);
 
     return logic.Init();
@@ -60,7 +60,7 @@ bool Window::update() {
     return logic.update_scene() && logic.paint();
 }
 
-bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
+bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height) {
     auto client_rect = RECT {
         .left = 0,
         .top = 0,

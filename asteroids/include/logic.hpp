@@ -20,6 +20,8 @@ struct Window;
 struct WindowLogic {
     bool Init();
 
+    bool set_asteroid_frequency();
+
     void reset_controller_pos();
     bool update_scene();
     bool paint();
@@ -105,6 +107,7 @@ private:
     //
     // GAME_PLAY, GAME_OVER
     //
+    u32 difficulty = 1;
     bool bullet_forbidden = false;
 
     Timer background_timer;

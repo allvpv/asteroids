@@ -265,11 +265,17 @@ bool WindowLogic::Init() {
     size = target->GetSize();
     reset_controller_pos();
 
+    if (!set_asteroid_frequency())
+        return false;
+
     return background_timer.Init(BACKGROUND_INTERVAL) &&
-           new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
            move_timer.Init(MOVE_INTERVAL) &&
            new_bullet_timer.Init(NEW_BULLET_INTERVAL) &&
            penalty_timer.Init(PENALTY_INTERVAL);
+}
+
+bool WindowLogic::set_asteroid_frequency() {
+    return new_asteroid_timer.Init((7 - difficulty) * 100);
 }
 
 void WindowLogic::new_bullets() {
@@ -581,7 +587,7 @@ bool WindowLogic::compute_penalty() {
     if (penalty_timer.get_intervals_count(true)) {
         if (penalty == 0)
             penalty_points_total = 0;
-        else if (State != GAME_OVER) {
+        else if (State == GAME_PLAY) {
             i32 penalty_points_unit = std::floor(penalty * 5.f);
             penalty_points_total += penalty_points_unit;
             score -= penalty_points_unit;
@@ -719,6 +725,10 @@ bool WindowLogic::paint() {
         paint_asteroids();
         paint_bullets();
 
+        if (State == FADE_IN) {
+            text_helper.DrawChosenLevel(chosen_next_difficulty, 1.f - fade_in_progress);
+        }
+
         if (State == GAME_OVER) {
             if (!text_helper.DrawGameOver(game_over_progress)) {
                 std::wcout << L"Failed to draw game_over\n";
@@ -726,7 +736,7 @@ bool WindowLogic::paint() {
             }
         }
 
-        if (!text_helper.DrawData(score, 1)) {
+        if (!text_helper.DrawData(score, difficulty)) {
             std::wcout << L"Failed to draw score\n";
             return false;
         }
@@ -757,7 +767,7 @@ bool WindowLogic::paint() {
         paint_asteroids();
         paint_bullets();
 
-        text_helper.DrawData(score, 1);
+        text_helper.DrawData(score, difficulty);
         typewriter_timer.update();
 
         if (typewriter_timer.get_intervals_count(true)) {
@@ -766,7 +776,7 @@ bool WindowLogic::paint() {
 
         auto [choose_next_txt, choose_next_len] = typewriter_animation.get_text();
         text_helper.DrawNextTxt(choose_next_txt, choose_next_len);
-        text_helper.DrawChosenLevel(chosen_next_difficulty);
+        text_helper.DrawChosenLevel(chosen_next_difficulty, 1.f);
 
         if (!typewriter_animation.is_frame_left()) {
             if (chosen_next_difficulty != -1) {
@@ -780,9 +790,11 @@ bool WindowLogic::paint() {
                 penalty_points_total = 0;
                 score = 0;
                 bullet_forbidden = false;
+                difficulty = chosen_next_difficulty;
+
+                if (!set_asteroid_frequency())
+                    return false;
             }
-        } else {
-            chosen_next_difficulty = -1;
         }
 
     } else if (State == FADE_OUT) {
@@ -791,7 +803,7 @@ bool WindowLogic::paint() {
         paint_bullets();
 
         text_helper.DrawGameOver(1.f);
-        text_helper.DrawData(score, 1);
+        text_helper.DrawData(score, difficulty);
 
         fade_out_timer.update();
 
@@ -833,4 +845,3 @@ bool WindowLogic::on_keypress(u16 vkey) {
 
     return true;
 }
-

@@ -104,7 +104,7 @@ struct TextHelper {
         choose_next_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
         choose_next_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
 
-        next_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+        next_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
         next_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
 
         hr = main_target->CreateEffect(CLSID_D2D1GaussianBlur, &blur_effect);
@@ -167,13 +167,13 @@ struct TextHelper {
         return DrawTargetWithGlow();
     }
 
-    bool DrawChosenLevel(i32 level) {
+    bool DrawChosenLevel(i32 level, f32 opacity) {
         HRESULT hr;
 
         auto size = target->GetSize();
-        auto rect = D2D1::RectF(size.width / 2. - 100.,
-                                size.height / 2.,
-                                size.width,
+        auto rect = D2D1::RectF(0,
+                                size.height / 2. - 50.,
+                                size.width / 2. + 50.,
                                 size.height);
 
         std::wstring chosen_level = [level]() {
@@ -190,7 +190,7 @@ struct TextHelper {
         target->BeginDraw();
         target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
 
-        text_yellow_brush->SetOpacity(1.f);
+        text_green_brush->SetOpacity(opacity);
 
         target->DrawText(chosen_level.data(), chosen_level.length(), next_format.Get(), rect,
                          text_green_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE,
@@ -276,8 +276,6 @@ struct TextHelper {
     bool DrawData(i32 score, u32 difficulty) {
         HRESULT hr;
 
-        target->BeginDraw();
-        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
 
         static const WCHAR sc_helloWorld[] = L"Score ";
         static const WCHAR sc_difficulty[] = L"Difficulty ";
@@ -299,6 +297,12 @@ struct TextHelper {
             .right = size.width,
             .bottom = rect_difficulty_text.bottom,
         };
+
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+
+        text_green_brush->SetOpacity(1.f);
+        text_pink_brush->SetOpacity(1.f);
 
         regular_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
 
