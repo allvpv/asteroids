@@ -18,7 +18,10 @@ struct Window;
 
 struct WindowLogic {
     bool Init();
-    bool on_paint();
+
+    bool update_scene();
+    bool paint();
+
     bool on_resize();
     bool on_mousemove();
 
@@ -31,7 +34,7 @@ struct WindowLogic {
         , game_over(false) {}
 
 private:
-    Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> create_background_gradient();
+    bool create_background_gradient();
 
     void new_asteroids();
     void new_bullets();
@@ -55,28 +58,30 @@ private:
     void paint_contour_dbg(const ObjectContour& contour, const Vector& center);
 #endif // PAINT_CONTOUR_DBG
 
-    Microsoft::WRL::ComPtr<ID2D1Bitmap> controller_bitmap;
-    Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_bitmap;
-    Microsoft::WRL::ComPtr<ID2D1Bitmap> bullet_bitmap;
+    ComPtr<ID2D1Bitmap> controller_bitmap;
+    ComPtr<ID2D1Bitmap> asteroid_bitmap;
+    ComPtr<ID2D1Bitmap> bullet_bitmap;
 
-    Microsoft::WRL::ComPtr<ID2D1Factory1> d2d_factory;
-    Microsoft::WRL::ComPtr<ID3D11Device> device;
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
-    Microsoft::WRL::ComPtr<IDXGIDevice1> dxgi_device;
-    Microsoft::WRL::ComPtr<ID2D1DeviceContext> target;
+    ComPtr<ID2D1Factory1> d2d_factory;
+    ComPtr<ID3D11Device> device;
+    ComPtr<ID3D11DeviceContext> context;
+    ComPtr<IDXGIDevice1> dxgi_device;
+    ComPtr<ID2D1DeviceContext> target;
 
-    Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
-    Microsoft::WRL::ComPtr<IDXGIFactory2> dxgi_factory;
-    Microsoft::WRL::ComPtr<IDXGISwapChain1> dxgi_swapchain;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> backbuffer;
-    Microsoft::WRL::ComPtr<IDXGISurface> dxgi_backbuffer;
-    Microsoft::WRL::ComPtr<ID2D1Bitmap1> target_bitmap;
+    ComPtr<IDXGIAdapter> dxgi_adapter;
+    ComPtr<IDXGIFactory2> dxgi_factory;
+    ComPtr<IDXGISwapChain1> dxgi_swapchain;
+    ComPtr<ID3D11Texture2D> backbuffer;
+    ComPtr<IDXGISurface> dxgi_backbuffer;
+    ComPtr<ID2D1Bitmap1> target_bitmap;
 
-    Microsoft::WRL::ComPtr<ID2D1Device> d2d_device;
-    Microsoft::WRL::ComPtr<ID2D1Device> d2d_context;
+    ComPtr<ID2D1Device> d2d_device;
+    ComPtr<ID2D1Device> d2d_context;
+
+    ComPtr<ID2D1LinearGradientBrush> background_brush;
 
 #ifdef PAINT_CONTOUR_DBG
-    Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> contour_brush;
+    ComPtr<ID2D1SolidColorBrush> contour_brush;
 #endif // PAINT_CONTOUR_DBG
     Window& window;
 

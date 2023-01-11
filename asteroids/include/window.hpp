@@ -20,6 +20,8 @@ struct Window {
     i32 get_inner_width() { return inner_width; }
     i32 get_inner_height() { return inner_height; }
 
+    bool update();
+
 private:
     WindowLogic logic;
     HWND handle;

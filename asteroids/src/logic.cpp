@@ -548,7 +548,7 @@ void WindowLogic::paint_bullets() {
     }
 }
 
-Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_background_gradient() {
+bool WindowLogic::create_background_gradient() {
     auto side_bg = reference_bg;
     auto middle_bg = reference_bg;
 
@@ -590,23 +590,20 @@ Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_background_
     );
 
     if (hr != S_OK || !gradient_stops)
-        return {};
+        return false;
 
-
-    Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> gradient_brush;
+    background_brush = nullptr;
 
     hr = target->CreateLinearGradientBrush(
             D2D1::LinearGradientBrushProperties(
                 D2D1::Point2F(0, 0),
                 D2D1::Point2F(size.width, 0)),
             gradient_stops.Get(),
-            &gradient_brush
+            &background_brush
     );
 
-    if (hr != S_OK || !gradient_brush)
-        return {};
-
-    return gradient_brush;
+    if (hr != S_OK || !background_brush)
+        return false;
 }
 
 void WindowLogic::destroy_asteroids() {
@@ -641,7 +638,9 @@ void WindowLogic::destroy_asteroids() {
     }
 }
 
-bool WindowLogic::on_paint() {
+bool WindowLogic::update_scene() {
+    std::wcout << L"Update\n";
+
     size = target->GetSize();
 
     background_timer.update();
@@ -656,9 +655,9 @@ bool WindowLogic::on_paint() {
     if (game_over)
         std::wcout << L"Game Over!\n";
 
-    auto bg_gradient = create_background_gradient();
+    bool result = create_background_gradient();
 
-    if (!bg_gradient) {
+    if (!result) {
         std::wcout << L"Cannot create background gradient\n";
         return false;
     }
@@ -668,6 +667,10 @@ bool WindowLogic::on_paint() {
 
     destroy_asteroids();
     collect_garbage();
+}
+
+bool WindowLogic::paint() {
+    std::wcout << L"Paint\n";
 
     // Proper drawing.
     PAINTSTRUCT ps;
@@ -681,7 +684,7 @@ bool WindowLogic::on_paint() {
         .top = 0.,
         .right = size.width,
         .bottom = size.height,
-    }, bg_gradient.Get());
+    }, background_brush.Get());
 
     paint_controller();
     paint_asteroids();
@@ -689,13 +692,15 @@ bool WindowLogic::on_paint() {
 
     target->EndDraw();
 
+    // The first argument instructs DXGI to block until VSync, putting the application
+    // to sleep until the next VSync. This ensures we don't waste any cycles rendering
+    // frames that will never be displayed to the screen.
     HRESULT hr = dxgi_swapchain->Present(1, 0);
     if (hr != S_OK) {
         return false;
     }
 
     EndPaint(window.get_handle(), &ps);
-
     return true;
 }
 

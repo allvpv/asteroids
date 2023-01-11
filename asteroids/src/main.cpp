@@ -39,18 +39,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {
     // Run the message loop.
     MSG msg = {};
 
+    window.update();
+
     while (true) {
-        bool has_message = PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE);
+        bool has_message = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
 
         if (!has_message) {
-            InvalidateRect(window.get_handle(), NULL, true);
-            continue;
+            if (!window.update()) {
+                std::wcout << L"Error while updating scene\n";
+                return -1;
+            }
+        } else {
+            if (msg.message == WM_QUIT)
+                return 0;
+            else {
+               TranslateMessage(&msg);
+               DispatchMessage(&msg);
+            }
         }
 
-        if (msg.message == WM_QUIT)
-            return 0;
-        else
-           DispatchMessageA(&msg);
     }
 
     return 0;

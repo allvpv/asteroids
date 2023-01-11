@@ -1,4 +1,5 @@
 #include <iostream>
+#include <tuple>
 
 #include "window.hpp"
 #include "logic.hpp"
@@ -55,6 +56,10 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
     return logic.Init();
 }
 
+bool Window::update() {
+    return logic.update_scene() && logic.paint();
+}
+
 bool Window::ComputeOuterSize(i32 &outer_width, i32 &outer_height, u32 dpi) {
     auto client_rect = RECT {
         .left = 0,
@@ -101,8 +106,9 @@ bool Window::SetOuterSize(i32 outer_width, i32 outer_height, u32 dpi) {
 void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch(uMsg) {
         case WM_PAINT: {
-            if (!logic.on_paint())
-                PostQuitMessage(0);
+            PAINTSTRUCT ps;
+            std::ignore = BeginPaint(handle, &ps);
+            EndPaint(handle, &ps);
             break;
         }
 
