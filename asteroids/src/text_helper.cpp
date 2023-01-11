@@ -130,8 +130,8 @@ bool TextHelper::DrawNextTxt(const wchar_t* text, size_t len) {
     HRESULT hr;
 
     auto size = target->GetSize();
-    auto rect = D2D1::RectF(size.width / 2. - 235.,
-                            size.height / 2. - 100,
+    auto rect = D2D1::RectF(size.width / 2.f - 235.f,
+                            size.height / 2.f - 100.f,
                             size.width,
                             size.height);
 
@@ -142,7 +142,7 @@ bool TextHelper::DrawNextTxt(const wchar_t* text, size_t len) {
 
     std::wcout << text << L", " << len << L'\n';
 
-    target->DrawText(text, len, choose_next_format.Get(), rect, text_yellow_brush.Get(),
+    target->DrawText(text, u32(len), choose_next_format.Get(), rect, text_yellow_brush.Get(),
                      D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
 
     hr = target->EndDraw();
@@ -158,8 +158,8 @@ bool TextHelper::DrawChosenLevel(i32 level, f32 opacity) {
 
     auto size = target->GetSize();
     auto rect = D2D1::RectF(0,
-                            size.height / 2. - 50.,
-                            size.width / 2. + 50.,
+                            size.height / 2.f - 50.f,
+                            size.width / 2.f + 50.f,
                             size.height);
 
     std::wstring chosen_level = [level]() {
@@ -178,7 +178,7 @@ bool TextHelper::DrawChosenLevel(i32 level, f32 opacity) {
 
     text_green_brush->SetOpacity(opacity);
 
-    target->DrawText(chosen_level.data(), chosen_level.length(), next_format.Get(), rect,
+    target->DrawText(chosen_level.data(), u32(chosen_level.length()), next_format.Get(), rect,
                      text_green_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE,
                      DWRITE_MEASURING_MODE_NATURAL);
 
@@ -246,7 +246,7 @@ bool TextHelper::DrawPenalty(f32 opacity, i32 penalty) {
         return oss.str();
     }();
 
-    target->DrawText(penalty_points.data(), penalty_points.length(), bold_format.Get(),
+    target->DrawText(penalty_points.data(), u32(penalty_points.length()), bold_format.Get(),
                      rect_penalty_points, text_white_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE,
                      DWRITE_MEASURING_MODE_NATURAL);
 
@@ -313,11 +313,11 @@ bool TextHelper::DrawData(i32 score, u32 difficulty) {
         return oss.str();
     }();
 
-    target->DrawText(score_txt.data(), score_txt.length(), bold_format.Get(),
+    target->DrawText(score_txt.data(), u32(score_txt.length()), bold_format.Get(),
                      rect_score_points, text_green_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_NONE,
                      DWRITE_MEASURING_MODE_NATURAL);
 
-    target->DrawText(diff_txt.data(), diff_txt.length(), bold_format.Get(),
+    target->DrawText(diff_txt.data(), u32(diff_txt.length()), bold_format.Get(),
                      rect_difficulty_points, text_green_brush.Get(),
                      D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
 
