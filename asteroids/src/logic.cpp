@@ -22,7 +22,7 @@ namespace {
     constexpr i32 ASTEROID_INTERVAL = 0'600;
     constexpr i32 NEW_BULLET_INTERVAL = 0'200;
     constexpr i32 PENALTY_INTERVAL = 0'300;
-    constexpr f32 FADE_OUT_INTERVAL = 2'000;
+    constexpr i32 FADE_OUT_INTERVAL = 2'000;
     constexpr f32 BULLET_SPEED = 3;
     constexpr i32 TYPE_SPEED = 0'100;
 
@@ -195,8 +195,8 @@ bool WindowLogic::Init() {
         D2D1::BitmapProperties1(
             D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
             D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-            dpi,
-            dpi
+            (f32) dpi,
+            (f32) dpi
         );
 
     hr = dxgi_swapchain->GetBuffer(0, IID_PPV_ARGS(&dxgi_backbuffer));
@@ -314,8 +314,8 @@ void WindowLogic::new_asteroids() {
     if (ticks && (State == GAME_PLAY || State == FADE_IN)) {
         const f32 asteroid_radius = asteroid_data.contour.half_of_sides.y;
 
-        const f64 shift_x = norm_asteroid_x(gen);
-        const f64 shift_y = unif_asteroid_y(gen);
+        const f32 shift_x = norm_asteroid_x(gen);
+        const f32 shift_y = unif_asteroid_y(gen);
 
         const f32 x_pos = shift_x * size.width;
         const f32 y_pos = -(shift_y * (300 - 2 * asteroid_radius) + asteroid_radius);
@@ -590,7 +590,7 @@ bool WindowLogic::compute_penalty() {
         if (penalty == 0)
             penalty_points_total = 0;
         else if (State == GAME_PLAY) {
-            i32 penalty_points_unit = std::floor(penalty * 5.f);
+            i32 penalty_points_unit = (i32) std::floor(penalty * 5.f);
             penalty_points_total += penalty_points_unit;
             score -= penalty_points_unit;
         }
@@ -632,6 +632,8 @@ bool WindowLogic::compute_penalty() {
 
     if (hr != S_OK || !background_brush)
         return false;
+
+    return true;
 }
 
 void WindowLogic::destroy_asteroids() {
@@ -696,6 +698,8 @@ bool WindowLogic::update_scene() {
 
     destroy_asteroids();
     collect_garbage();
+
+    return true;
 }
 
 bool WindowLogic::paint() {

@@ -17,7 +17,7 @@ def process_file(filename, objectname, width, height, scaler):
 
         print( "")
         print(f"inline SpiritData {objectname} {{")
-        print(f'    .filename = L"{filename}.png",')
+        print(f'    .filename = L"assets/{filename}.png",')
         print( '    .contour = {')
         print( "        .vertices = {")
 

@@ -31,9 +31,9 @@ struct WindowLogic {
 
     WindowLogic(Window& window)
         : window(window)
-        , norm_asteroid_x(0.5, 0.125) // Almost always (0, 1)
-        , unif_asteroid_y(0., 1.)     // Always [0, 1)
-        , unif_speed(1., 1.5)
+        , norm_asteroid_x(0.5f, 0.125f) // Almost always (0, 1)
+        , unif_asteroid_y(0.f, 1.f)     // Always [0, 1)
+        , unif_speed(1.f, 1.5f)
         , gen(rd())
         , State(GAME_PLAY) {}
 
@@ -155,9 +155,9 @@ private:
     std::deque<Asteroid> asteroids;
     std::deque<Bullet> bullets;
 
-    std::uniform_real_distribution<double> unif_speed;
-    std::normal_distribution<double> norm_asteroid_x;
-    std::uniform_real_distribution<double> unif_asteroid_y;
+    std::uniform_real_distribution<float> unif_speed;
+    std::normal_distribution<float> norm_asteroid_x;
+    std::uniform_real_distribution<float> unif_asteroid_y;
 
     std::random_device rd;
     std::mt19937 gen;

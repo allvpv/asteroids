@@ -12,7 +12,7 @@ struct SpiritData {
 };
 
 inline SpiritData controller_data {
-    .filename = L"rocket.png",
+    .filename = L"assets/rocket.png",
     .contour = {
         .vertices = {
             { 0.0f, -56.0f },
@@ -35,7 +35,7 @@ inline SpiritData controller_data {
 };
 
 inline SpiritData asteroid_data {
-    .filename = L"asteroid_small.png",
+    .filename = L"assets/asteroid_small.png",
     .contour = {
         .vertices = {
             { -28.2f, -35.45f },
@@ -54,7 +54,7 @@ inline SpiritData asteroid_data {
 };
 
 inline SpiritData bullet_data {
-    .filename = L"bullet.png",
+    .filename = L"assets/bullet.png",
     .contour = {
         .vertices = {
             { 0.5f, -54.12f },

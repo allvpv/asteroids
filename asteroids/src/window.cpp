@@ -104,7 +104,7 @@ bool Window::SetOuterSize(i32 outer_width, i32 outer_height, u32 dpi) {
     );
 }
 
-void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam) {
+void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM /* lParam */) {
     switch(uMsg) {
         case WM_PAINT: {
             PAINTSTRUCT ps;
@@ -126,7 +126,7 @@ void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_KEYDOWN: {
-            if (!logic.on_keypress(wParam))
+            if (!logic.on_keypress((u16) wParam))
                 PostQuitMessage(0);
             break;
         }
