@@ -13,6 +13,7 @@
 #include "graphics.hpp"
 #include "math.hpp"
 #include "spirits.hpp"
+#include "text_helper.hpp"
 
 struct Window;
 
@@ -76,7 +77,7 @@ private:
     ComPtr<ID2D1Bitmap1> target_bitmap;
 
     ComPtr<ID2D1Device> d2d_device;
-    ComPtr<ID2D1Device> d2d_context;
+    ComPtr<ID2D1DeviceContext> d2d_context;
 
     ComPtr<ID2D1LinearGradientBrush> background_brush;
 
@@ -84,6 +85,8 @@ private:
     ComPtr<ID2D1SolidColorBrush> contour_brush;
 #endif // PAINT_CONTOUR_DBG
     Window& window;
+
+    TextHelper text_helper;
 
     D2D1_SIZE_F size;
 
@@ -136,9 +139,5 @@ private:
 
     std::random_device rd;
     std::mt19937 gen;
-
-    /*
-    TextHelper text_helper;
-    */
 };
 

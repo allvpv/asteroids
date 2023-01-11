@@ -74,7 +74,7 @@ bool WindowLogic::Init() {
 
     D2D1_FACTORY_OPTIONS options = {};
 
-    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,
+    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED,
                            __uuidof(ID2D1Factory1),
                            &options,
                            &d2d_factory);
@@ -87,18 +87,6 @@ bool WindowLogic::Init() {
 
     controller_pos.x = size.width / 2;
     controller_pos.y = size.height - 60;
-
-    /*
-    hr = d2d_factory->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(),
-        D2D1::HwndRenderTargetProperties(window.get_handle(), size),
-        &render_target);
-
-    if (hr != S_OK || !render_target) {
-        ErrorCollection::render_target_crash(hr);
-        return false;
-    }
-    */
 
     UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
@@ -265,12 +253,10 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    /*
-    if (!text_helper.Init()) {
+    if (!text_helper.Init(target)) {
         ErrorCollection::text_helper_crash();
         return false;
     }
-    */
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
@@ -673,9 +659,6 @@ bool WindowLogic::paint() {
     std::wcout << L"Paint\n";
 
     // Proper drawing.
-    PAINTSTRUCT ps;
-    HDC hDC = BeginPaint(window.get_handle(), &ps);
-
     target->BeginDraw();
 
     // Paint background.
@@ -690,6 +673,11 @@ bool WindowLogic::paint() {
     paint_asteroids();
     paint_bullets();
 
+    if (!text_helper.Draw()) {
+        std::wcout << L"Failed to draw text\n";
+        return false;
+    }
+
     target->EndDraw();
 
     // The first argument instructs DXGI to block until VSync, putting the application
@@ -700,7 +688,6 @@ bool WindowLogic::paint() {
         return false;
     }
 
-    EndPaint(window.get_handle(), &ps);
     return true;
 }
 
