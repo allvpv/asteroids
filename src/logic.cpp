@@ -412,7 +412,7 @@ void WindowLogic::controller_move(const f32 shift) {
         decelerate(accel_left, 0.75f);
     }
 
-    controller_pos.x += (accel_right - accel_left) * shift * 0.5f * dpi_factor;
+    controller_pos.x += (accel_right - accel_left) * shift * 0.4f * dpi_factor;
 }
 
 void WindowLogic::asteroids_move(const f32 shift) {

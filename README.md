@@ -1,12 +1,4 @@
-To create project, please write:
+![gif](./gifgif.gif)
 
-```
-cmake . -B build
-```
-
-And please open `build\Asteroids.vcxproj` in Visual Studio.
-
-I'm sorry for the difficulties, I am using Windows ARM and I have no other
-options apart from using CMake.
-
-In case of any difficulties, I am eager to help. Thank you.
+Game for DirectX programming course (2D part). Not spectacular but pretty nice
+for a game done in 3 days in very low-level API.
