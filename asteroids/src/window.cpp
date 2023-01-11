@@ -1,7 +1,8 @@
+#include "window.hpp"
+
 #include <iostream>
 #include <tuple>
 
-#include "window.hpp"
 #include "logic.hpp"
 #include "common.hpp"
 #include "timer.hpp"

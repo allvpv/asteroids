@@ -10,9 +10,8 @@
 
 #include "common.hpp"
 #include "timer.hpp"
-#include "graphics.hpp"
 #include "math.hpp"
-#include "spirits.hpp"
+#include "spirits_gen.hpp"
 #include "text_helper.hpp"
 
 struct Window;

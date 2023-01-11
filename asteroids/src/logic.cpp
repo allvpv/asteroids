@@ -1,3 +1,5 @@
+#include "logic.hpp"
+
 #include <iostream>
 #include <utility>
 #include <cmath>
@@ -9,10 +11,10 @@
 #include <comdef.h>
 
 #include "common.hpp"
-#include "logic.hpp"
 #include "window.hpp"
 #include "math.hpp"
 #include "timer.hpp"
+#include "bitmap_helper.hpp"
 
 namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
@@ -423,8 +425,8 @@ void WindowLogic::update_motion() {
 
 void WindowLogic::paint_controller() {
     D2D1_SIZE_F bmp_size = controller_bitmap->GetSize();
-    bmp_size.width /= 2;
-    bmp_size.height /= 2;
+    bmp_size.width *= controller_data.scale;
+    bmp_size.height *= controller_data.scale;
 
     f32 hlfw_x = bmp_size.width / 2;
     f32 hlfw_y = bmp_size.height / 2;
@@ -493,8 +495,8 @@ void WindowLogic::collect_garbage() {
 
 void WindowLogic::paint_asteroids() {
     D2D1_SIZE_F bmp_size = asteroid_bitmap->GetSize();
-    bmp_size.width /= 10;
-    bmp_size.height /= 10;
+    bmp_size.width *= asteroid_data.scale;
+    bmp_size.height *= asteroid_data.scale;
 
     f32 hlfw_x = bmp_size.width / 2;
     f32 hlfw_y = bmp_size.height / 2;
@@ -526,8 +528,8 @@ void WindowLogic::paint_asteroids() {
 
 void WindowLogic::paint_bullets() {
     D2D1_SIZE_F bmp_size = bullet_bitmap->GetSize();
-    bmp_size.width /= 4;
-    bmp_size.height /= 4;
+    bmp_size.width *= bullet_data.scale;
+    bmp_size.height *= bullet_data.scale;
 
     f32 hlfw_x = bmp_size.width / 2;
     f32 hlfw_y = bmp_size.height / 2;

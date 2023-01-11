@@ -1,6 +1,7 @@
+#include "bitmap_helper.hpp"
+
 #include <iostream>
 #include <utility>
-#include "graphics.hpp"
 
 std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1DeviceContext& target,
                                                               IWICImagingFactory2& imaging_factory,
