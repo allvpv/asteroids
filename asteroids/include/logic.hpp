@@ -20,11 +20,13 @@ struct Window;
 struct WindowLogic {
     bool Init();
 
+    void reset_controller_pos();
     bool update_scene();
     bool paint();
 
     bool on_resize();
     bool on_mousemove();
+    bool on_keypress(u16 vkey);
 
     WindowLogic(Window& window)
         : window(window)
@@ -32,10 +34,10 @@ struct WindowLogic {
         , unif_asteroid_y(0., 1.)     // Always [0, 1)
         , unif_speed(1., 1.5)
         , gen(rd())
-        , game_over(false) {}
+        , State(GAME_PLAY) {}
 
 private:
-    bool create_background_gradient();
+    bool compute_penalty();
 
     void new_asteroids();
     void new_bullets();
@@ -43,6 +45,7 @@ private:
     void asteroids_move(const i32 ticks);
     void controller_move(const i32 ticks);
     void bullets_move(const i32 ticks);
+    void game_over_move(const i32 ticks);
 
     void update_motion();
 
@@ -90,16 +93,33 @@ private:
 
     D2D1_SIZE_F size;
 
-    bool game_over = false;
+    enum {
+        FADE_IN,
+        GAME_PLAY,
+        GAME_OVER,
+        FADE_OUT,
+        CHOOSE_NEW_LEVEL,
+    } State;
+
+
+    //
+    // GAME_PLAY, GAME_OVER
+    //
     bool bullet_forbidden = false;
 
     Timer background_timer;
     Timer new_asteroid_timer;
     Timer move_timer;
     Timer new_bullet_timer;
+    Timer penalty_timer;
 
     f32 bound_left;
     f32 bound_right;
+
+    f32 penalty;
+
+    i32 penalty_points_total;
+    i32 score = 0;
 
     struct Asteroid {
         Vector pos;
@@ -139,5 +159,25 @@ private:
 
     std::random_device rd;
     std::mt19937 gen;
+
+    f32 game_over_progress = 0;
+
+    //
+    // FADE_OUT
+    //
+    Timer fade_out_timer;
+
+    //
+    // CHOOSE_NEW_LEVEL
+    //
+    Timer typewriter_timer;
+    TextTypewriterAnimation typewriter_animation;
+    inline static const wchar_t choose_difficulty[] = L"Choose new level difficulty:";
+    i32 chosen_next_difficulty = -1;
+
+    //
+    // FADE_IN
+    //
+    f32 fade_in_progress;
 };
 

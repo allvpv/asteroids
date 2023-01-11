@@ -124,6 +124,12 @@ void Window::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
+        case WM_KEYDOWN: {
+            if (!logic.on_keypress(wParam))
+                PostQuitMessage(0);
+            break;
+        }
+
         case WM_DESTROY: {
             /* Post quit message with status 0 to main process loop */
             PostQuitMessage(0);

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <utility>
+#include <cmath>
 
 #include <d2d1_2.h>
 #include <d3d11.h>
@@ -18,7 +19,10 @@ namespace {
     constexpr i32 BACKGROUND_INTERVAL = 4'000;
     constexpr i32 ASTEROID_INTERVAL = 0'600;
     constexpr i32 NEW_BULLET_INTERVAL = 0'200;
+    constexpr i32 PENALTY_INTERVAL = 0'300;
+    constexpr f32 FADE_OUT_INTERVAL = 2'000;
     constexpr f32 BULLET_SPEED = 3;
+    constexpr i32 TYPE_SPEED = 0'100;
 
     constexpr D2D1_COLOR_F reference_bg {
         .r = 0.10f - 0.075f,
@@ -63,6 +67,11 @@ namespace {
     }
 }
 
+void WindowLogic::reset_controller_pos() {
+    controller_pos.x = size.width / 2;
+    controller_pos.y = size.height - 60;
+}
+
 bool WindowLogic::Init() {
     HRESULT hr;
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
@@ -82,11 +91,6 @@ bool WindowLogic::Init() {
         ErrorCollection::factory_crash(hr);
         return false;
     }
-
-    D2D1_SIZE_U size = D2D1::SizeU(window.get_inner_width(), window.get_inner_height());
-
-    controller_pos.x = size.width / 2;
-    controller_pos.y = size.height - 60;
 
     UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
@@ -258,10 +262,14 @@ bool WindowLogic::Init() {
         return false;
     }
 
+    size = target->GetSize();
+    reset_controller_pos();
+
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
            move_timer.Init(MOVE_INTERVAL) &&
-           new_bullet_timer.Init(NEW_BULLET_INTERVAL);
+           new_bullet_timer.Init(NEW_BULLET_INTERVAL) &&
+           penalty_timer.Init(PENALTY_INTERVAL);
 }
 
 void WindowLogic::new_bullets() {
@@ -275,7 +283,7 @@ void WindowLogic::new_bullets() {
 
     bool space_press = key_up(VK_SPACE);
 
-    if (bullet_forbidden || !space_press || game_over)
+    if (bullet_forbidden || !space_press || State != GAME_PLAY)
         return;
 
     bullet_forbidden = true;
@@ -295,14 +303,14 @@ void WindowLogic::new_bullets() {
 void WindowLogic::new_asteroids() {
     const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
-    if (ticks) {
+    if (ticks && (State == GAME_PLAY || State == FADE_IN)) {
         const f32 asteroid_radius = asteroid_data.contour.half_of_sides.y;
 
         const f64 shift_x = norm_asteroid_x(gen);
         const f64 shift_y = unif_asteroid_y(gen);
 
         const f32 x_pos = shift_x * size.width;
-        const f32 y_pos = -(shift_y * (size.height - 2 * asteroid_radius) + asteroid_radius);
+        const f32 y_pos = -(shift_y * (300 - 2 * asteroid_radius) + asteroid_radius);
 
         const f32 speed = unif_speed(gen);
 
@@ -333,7 +341,7 @@ bool WindowLogic::is_there_collision() {
 }
 
 void WindowLogic::controller_move(const i32 ticks) {
-    if (game_over) {
+    if (State == GAME_OVER) {
         controller_pos.y += ticks * controller_downspeed;
         return;
     }
@@ -387,6 +395,15 @@ void WindowLogic::bullets_move(const i32 ticks) {
     }
 }
 
+void WindowLogic::game_over_move(const i32 ticks) {
+    if (State == GAME_OVER && game_over_progress < 1.f)
+        game_over_progress += ticks / 128.f;
+
+    if (State == FADE_IN && fade_in_progress < 1.f)
+        fade_in_progress += ticks / 128.f;
+}
+
+
 void WindowLogic::update_motion() {
     const i32 ticks = move_timer.get_intervals_count(true);
 
@@ -394,6 +411,7 @@ void WindowLogic::update_motion() {
         asteroids_move(ticks);
         controller_move(ticks);
         bullets_move(ticks);
+        game_over_move(ticks);
     }
 }
 
@@ -534,24 +552,40 @@ void WindowLogic::paint_bullets() {
     }
 }
 
-bool WindowLogic::create_background_gradient() {
+bool WindowLogic::compute_penalty() {
     auto side_bg = reference_bg;
     auto middle_bg = reference_bg;
 
-    f32 penalty = max(bound_left - controller_pos.x, controller_pos.x - bound_right);
+    f32 paint_blue_bound = size.width / 5;
+    f32 penalty_bound = size.width / 3;
 
-    if (penalty > 0)
-        side_bg.r += (penalty / bound_left);
+    penalty = max(penalty_bound - controller_pos.x, controller_pos.x + penalty_bound - size.width);
+    f32 paint_blue = fabsf(controller_pos.x - size.width / 2);
+
+    if (penalty > 0.f)
+        penalty = penalty / penalty_bound;
+    else
+        penalty = 0.f;
+
+    if (paint_blue < paint_blue_bound)
+        paint_blue = 1.f - paint_blue / paint_blue_bound;
+    else
+        paint_blue = 0.f;
+
+    if (penalty > 0.f)
+        side_bg.r += penalty;
     else {
-        f32 reward = controller_pos.x - size.width / 2;
+        middle_bg.b += 0.3f * paint_blue;
+    }
 
-        if (reward < 0)
-            reward *= -1;
-
-        f32 reward_bound = size.width / 5;
-
-        if (reward < reward_bound)
-            middle_bg.b += 0.3f * (1.f - reward / reward_bound);
+    if (penalty_timer.get_intervals_count(true)) {
+        if (penalty == 0)
+            penalty_points_total = 0;
+        else if (State != GAME_OVER) {
+            i32 penalty_points_unit = std::floor(penalty * 5.f);
+            penalty_points_total += penalty_points_unit;
+            score -= penalty_points_unit;
+        }
     }
 
     D2D1_GRADIENT_STOP gradient_stops_arr[3];
@@ -618,6 +652,7 @@ void WindowLogic::destroy_asteroids() {
             if (intersect(asteroid_data.contour, bullet_data.contour, a.pos, b.pos)) {
                 a.destroyed = true;
                 b.destroyed = true;
+                score += 5;
                 break;
             }
         }
@@ -633,49 +668,140 @@ bool WindowLogic::update_scene() {
     new_asteroid_timer.update();
     new_bullet_timer.update();
     move_timer.update();
+    penalty_timer.update();
 
     update_motion();
     new_asteroids();
     new_bullets();
 
-    if (game_over)
-        std::wcout << L"Game Over!\n";
-
-    bool result = create_background_gradient();
+    bool result = compute_penalty();
 
     if (!result) {
         std::wcout << L"Cannot create background gradient\n";
         return false;
     }
 
-    if (!game_over)
-        game_over = is_there_collision();
+    if (State == GAME_PLAY)
+        if (is_there_collision()) {
+            State = GAME_OVER;
+        }
 
     destroy_asteroids();
     collect_garbage();
 }
 
 bool WindowLogic::paint() {
-    std::wcout << L"Paint\n";
-
     // Proper drawing.
     target->BeginDraw();
+    target->Clear(D2D1::ColorF(0.f, 0.f, 0.f));
 
-    // Paint background.
-    target->FillRectangle(D2D1_RECT_F {
-        .left = 0.,
-        .top = 0.,
-        .right = size.width,
-        .bottom = size.height,
-    }, background_brush.Get());
+    if (State == GAME_PLAY || State == GAME_OVER || State == FADE_IN) {
+        f32 gameplay_opacity;
 
-    paint_controller();
-    paint_asteroids();
-    paint_bullets();
+        if (State == GAME_OVER)
+            gameplay_opacity = 1.f - game_over_progress;
+        else if (State == FADE_IN)
+            gameplay_opacity = fade_in_progress;
+        else /* GAME_PLAY */
+            gameplay_opacity = 1.f;
 
-    if (!text_helper.Draw()) {
-        std::wcout << L"Failed to draw text\n";
-        return false;
+        background_brush->SetOpacity(gameplay_opacity);
+
+        // Paint background.
+        target->FillRectangle(D2D1_RECT_F {
+            .left = 0.,
+            .top = 0.,
+            .right = size.width,
+            .bottom = size.height,
+        }, background_brush.Get());
+
+        paint_controller();
+        paint_asteroids();
+        paint_bullets();
+
+        if (State == GAME_OVER) {
+            if (!text_helper.DrawGameOver(game_over_progress)) {
+                std::wcout << L"Failed to draw game_over\n";
+                return false;
+            }
+        }
+
+        if (!text_helper.DrawData(score, 1)) {
+            std::wcout << L"Failed to draw score\n";
+            return false;
+        }
+
+        if (penalty) {
+            if (!text_helper.DrawPenalty(penalty * gameplay_opacity, penalty_points_total)) {
+                std::wcout << L"Failed to draw penalty text\n";
+                return false;
+            }
+        }
+
+        if (game_over_progress >= 1.f) {
+            State = FADE_OUT;
+
+            if (!fade_out_timer.Init(FADE_OUT_INTERVAL)) {
+                std::wcout << "Cannot init fade-out timer\n";
+                return false;
+            }
+        }
+
+        if (fade_in_progress >= 1.f) {
+            State = GAME_PLAY;
+            fade_in_progress = 0.f;
+        }
+    }
+    else if (State == CHOOSE_NEW_LEVEL) {
+        // std::wcout << "cnl\n";
+        paint_asteroids();
+        paint_bullets();
+
+        text_helper.DrawData(score, 1);
+        typewriter_timer.update();
+
+        if (typewriter_timer.get_intervals_count(true)) {
+            typewriter_animation.next_frame();
+        }
+
+        auto [choose_next_txt, choose_next_len] = typewriter_animation.get_text();
+        text_helper.DrawNextTxt(choose_next_txt, choose_next_len);
+        text_helper.DrawChosenLevel(chosen_next_difficulty);
+
+        if (!typewriter_animation.is_frame_left()) {
+            if (chosen_next_difficulty != -1) {
+                State = FADE_IN;
+                reset_controller_pos();
+                asteroids.clear();
+                bullets.clear();
+                game_over_progress = 0.f;
+                fade_in_progress = 0.f;
+                controller_downspeed = 0.f;
+                penalty_points_total = 0;
+                score = 0;
+                bullet_forbidden = false;
+            }
+        } else {
+            chosen_next_difficulty = -1;
+        }
+
+    } else if (State == FADE_OUT) {
+        std::wcout << "fout\n";
+        paint_asteroids();
+        paint_bullets();
+
+        text_helper.DrawGameOver(1.f);
+        text_helper.DrawData(score, 1);
+
+        fade_out_timer.update();
+
+        if (fade_out_timer.get_intervals_count(false)) {
+            State = CHOOSE_NEW_LEVEL;
+            typewriter_animation.Init(L"CHOOSE NEXT LEVEL DIFFICULTY");
+            typewriter_timer.Init(TYPE_SPEED);
+            chosen_next_difficulty = -1;
+        }
+
     }
 
     target->EndDraw();
@@ -696,6 +822,15 @@ bool WindowLogic::on_resize() {
 }
 
 bool WindowLogic::on_mousemove() {
+    return true;
+}
+
+bool WindowLogic::on_keypress(u16 vkey) {
+    if (State == CHOOSE_NEW_LEVEL) {
+        if (vkey >= 0x31 && vkey <= 0x36)
+            chosen_next_difficulty = vkey - 0x30;
+    }
+
     return true;
 }
 
