@@ -43,10 +43,10 @@ private:
     void new_asteroids();
     void new_bullets();
 
-    void asteroids_move(const i32 ticks);
-    void controller_move(const i32 ticks);
-    void bullets_move(const i32 ticks);
-    void game_over_move(const i32 ticks);
+    void asteroids_move(const f32 shift);
+    void controller_move(const f32 shift);
+    void bullets_move(const f32 shift);
+    void game_over_move(const f32 shift);
 
     void update_motion();
 
@@ -106,8 +106,11 @@ private:
     //
     // GAME_PLAY, GAME_OVER
     //
+    Spirits spirits;
     u32 difficulty = 1;
     bool bullet_forbidden = false;
+
+    f32 dpi_factor;
 
     Timer background_timer;
     Timer new_asteroid_timer;
@@ -123,6 +126,10 @@ private:
     i32 penalty_points_total;
     i32 score = 0;
 
+    D2D1_SIZE_F controller_bmp_size;
+    D2D1_SIZE_F asteroid_bmp_size;
+    D2D1_SIZE_F bullet_bmp_size;
+
     struct Asteroid {
         Vector pos;
         f32 speed;
@@ -131,7 +138,7 @@ private:
     };
 
     bool asteroid_visible(const Asteroid& asteroid) {
-        return asteroid.pos.y <= size.height + asteroid_data.contour.half_of_sides.y;
+        return asteroid.pos.y <= size.height + spirits.asteroid.contour.half_of_sides.y;
     }
 
     struct Bullet {
@@ -141,7 +148,7 @@ private:
     };
 
     bool bullet_visible(const Bullet& bullet) {
-        return bullet.pos.y + bullet_data.contour.half_of_sides.y >= 0;
+        return bullet.pos.y + spirits.bullet.contour.half_of_sides.y >= 0;
     }
 
     bool bullet_can_destroy(const Bullet& bullet) {
@@ -182,4 +189,3 @@ private:
     //
     f32 fade_in_progress;
 };
-

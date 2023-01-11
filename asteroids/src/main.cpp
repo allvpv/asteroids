@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdio>
 #include <windows.h>
+#include <winuser.h>
 #include "window.hpp"
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow) {

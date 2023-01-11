@@ -135,7 +135,9 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    hr = d2d_device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &target);
+    hr = d2d_device->CreateDeviceContext(
+            D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS,
+            &target);
 
     if (hr != S_OK) {
         return false;
@@ -154,7 +156,7 @@ bool WindowLogic::Init() {
         .BufferCount = 2, // use double buffering to enable flip
         .Scaling = DXGI_SCALING_NONE,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, // all apps must use this SwapEffect
-        .Flags = 0,
+        .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
     };
 
     hr = dxgi_device->GetAdapter(&dxgi_adapter);
@@ -191,12 +193,14 @@ bool WindowLogic::Init() {
 
     u32 dpi = GetDpiForWindow(window.get_handle());
 
+    std::wcout << "DPI: " << dpi << '\n';
+
     D2D1_BITMAP_PROPERTIES1 bitmap_properties =
         D2D1::BitmapProperties1(
             D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
             D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-            (f32) dpi,
-            (f32) dpi
+            (f32) 96,
+            (f32) 96
         );
 
     hr = dxgi_swapchain->GetBuffer(0, IID_PPV_ARGS(&dxgi_backbuffer));
@@ -253,11 +257,30 @@ bool WindowLogic::Init() {
         return true;
     };
 
-    if (!load_bitmap(controller_data.filename, controller_bitmap) ||
-        !load_bitmap(asteroid_data.filename, asteroid_bitmap) ||
-        !load_bitmap(bullet_data.filename, bullet_bitmap)) {
+    if (!load_bitmap(spirits.controller.filename, controller_bitmap) ||
+        !load_bitmap(spirits.asteroid.filename, asteroid_bitmap) ||
+        !load_bitmap(spirits.bullet.filename, bullet_bitmap)) {
         return false;
     }
+
+    dpi_factor = (f32) GetDpiForWindow(window.get_handle()) / 96.f;
+
+    spirits.controller.contour.update_for_dpi(dpi_factor);
+    spirits.asteroid.contour.update_for_dpi(dpi_factor);
+    spirits.bullet.contour.update_for_dpi(dpi_factor);
+
+    auto dpi_scale = [dpi_factor = dpi_factor](D2D1_SIZE_F& size, f32 factor) {
+        size.width = size.width * factor * dpi_factor;
+        size.height = size.height * factor * dpi_factor;
+    };
+
+    controller_bmp_size = controller_bitmap->GetSize();
+    asteroid_bmp_size = asteroid_bitmap->GetSize();
+    bullet_bmp_size = bullet_bitmap->GetSize();
+
+    dpi_scale(controller_bmp_size, spirits.controller.scale);
+    dpi_scale(asteroid_bmp_size, spirits.asteroid.scale);
+    dpi_scale(bullet_bmp_size, spirits.bullet.scale);
 
     if (!text_helper.Init(target)) {
         ErrorCollection::text_helper_crash();
@@ -299,7 +322,7 @@ void WindowLogic::new_bullets() {
 
     Vector bullet_pos { controller_pos };
 
-    bullet_pos.y -= controller_data.contour.half_of_sides.y;
+    bullet_pos.y -= spirits.controller.contour.half_of_sides.y;
 
     bullets.push_front(Bullet {
         .pos = bullet_pos,
@@ -312,7 +335,7 @@ void WindowLogic::new_asteroids() {
     const i32 ticks = new_asteroid_timer.get_intervals_count(true);
 
     if (ticks && (State == GAME_PLAY || State == FADE_IN)) {
-        const f32 asteroid_radius = asteroid_data.contour.half_of_sides.y;
+        const f32 asteroid_radius = spirits.asteroid.contour.half_of_sides.y;
 
         const f32 shift_x = norm_asteroid_x(gen);
         const f32 shift_y = unif_asteroid_y(gen);
@@ -324,7 +347,7 @@ void WindowLogic::new_asteroids() {
 
         asteroids.push_front(Asteroid {
             .pos = Vector(x_pos, y_pos),
-            .speed = speed,
+            .speed = speed * dpi_factor,
             .destroyed = false,
             .size = 1.f,
         });
@@ -339,7 +362,8 @@ bool WindowLogic::is_there_collision() {
         if (a.pos.y < size.height / 2)
             continue;
 
-        if (intersect(asteroid_data.contour, controller_data.contour, a.pos, controller_pos)) {
+        if (intersect(spirits.asteroid.contour, spirits.controller.contour,
+                      a.pos, controller_pos)) {
             controller_downspeed = 3.f * a.speed;
             return true;
         }
@@ -348,9 +372,9 @@ bool WindowLogic::is_there_collision() {
     return false;
 }
 
-void WindowLogic::controller_move(const i32 ticks) {
+void WindowLogic::controller_move(const f32 shift) {
     if (State == GAME_OVER) {
-        controller_pos.y += ticks * controller_downspeed;
+        controller_pos.y += shift * controller_downspeed;
         return;
     }
 
@@ -388,48 +412,43 @@ void WindowLogic::controller_move(const i32 ticks) {
         decelerate(accel_left, 0.75f);
     }
 
-    controller_pos.x += accel_right - accel_left;
+    controller_pos.x += (accel_right - accel_left) * shift * 0.5f * dpi_factor;
 }
 
-void WindowLogic::asteroids_move(const i32 ticks) {
+void WindowLogic::asteroids_move(const f32 shift) {
     for (auto& a : asteroids) {
-        a.pos.y += ticks * a.speed;
+        a.pos.y += shift * a.speed;
     }
 }
 
-void WindowLogic::bullets_move(const i32 ticks) {
+void WindowLogic::bullets_move(const f32 shift) {
     for (auto& b : bullets) {
-        b.pos.y -= ticks * BULLET_SPEED;
+        b.pos.y -= shift * BULLET_SPEED * dpi_factor;
     }
 }
 
-void WindowLogic::game_over_move(const i32 ticks) {
+void WindowLogic::game_over_move(const f32 shift) {
     if (State == GAME_OVER && game_over_progress < 1.f)
-        game_over_progress += ticks / 128.f;
+        game_over_progress += shift / 128.f;
 
     if (State == FADE_IN && fade_in_progress < 1.f)
-        fade_in_progress += ticks / 128.f;
+        fade_in_progress += shift / 128.f;
 }
 
 
 void WindowLogic::update_motion() {
-    const i32 ticks = move_timer.get_intervals_count(true);
+    const f32 shift = move_timer.get_intervals_continuous();
+    move_timer.start_new_interval();
 
-    if (ticks) {
-        asteroids_move(ticks);
-        controller_move(ticks);
-        bullets_move(ticks);
-        game_over_move(ticks);
-    }
+    asteroids_move(shift);
+    controller_move(shift);
+    bullets_move(shift);
+    game_over_move(shift);
 }
 
 void WindowLogic::paint_controller() {
-    D2D1_SIZE_F bmp_size = controller_bitmap->GetSize();
-    bmp_size.width *= controller_data.scale;
-    bmp_size.height *= controller_data.scale;
-
-    f32 hlfw_x = bmp_size.width / 2;
-    f32 hlfw_y = bmp_size.height / 2;
+    f32 hlfw_x = controller_bmp_size.width / 2;
+    f32 hlfw_y = controller_bmp_size.height / 2;
 
     // Draw a bitmap.
     target->DrawBitmap(
@@ -443,7 +462,7 @@ void WindowLogic::paint_controller() {
     );
 
 #ifdef PAINT_CONTOUR_DBG
-    paint_contour_dbg(controller_data.contour, controller_pos);
+    paint_contour_dbg(spirits.controller.contour, controller_pos);
 #endif // PAINT_CONTOUR_DBG
 }
 
@@ -488,18 +507,11 @@ void WindowLogic::collect_garbage() {
         else
             break;
     }
-
-    std::wcout << L"GC: asters: " << asteroids.size()
-               << L"; bullets: " << bullets.size() << L'\n';
 }
 
 void WindowLogic::paint_asteroids() {
-    D2D1_SIZE_F bmp_size = asteroid_bitmap->GetSize();
-    bmp_size.width *= asteroid_data.scale;
-    bmp_size.height *= asteroid_data.scale;
-
-    f32 hlfw_x = bmp_size.width / 2;
-    f32 hlfw_y = bmp_size.height / 2;
+    f32 hlfw_x = asteroid_bmp_size.width / 2;
+    f32 hlfw_y = asteroid_bmp_size.height / 2;
 
     for (auto& a : asteroids) {
         f32 this_hlfw_x = hlfw_x;
@@ -521,18 +533,14 @@ void WindowLogic::paint_asteroids() {
         );
 
 #ifdef PAINT_CONTOUR_DBG
-        paint_contour_dbg(asteroid_data.contour, a.pos);
+        paint_contour_dbg(spirits.asteroid.contour, a.pos);
 #endif // PAINT_CONTOUR_DBG
     }
 }
 
 void WindowLogic::paint_bullets() {
-    D2D1_SIZE_F bmp_size = bullet_bitmap->GetSize();
-    bmp_size.width *= bullet_data.scale;
-    bmp_size.height *= bullet_data.scale;
-
-    f32 hlfw_x = bmp_size.width / 2;
-    f32 hlfw_y = bmp_size.height / 2;
+    f32 hlfw_x = bullet_bmp_size.width / 2;
+    f32 hlfw_y = bullet_bmp_size.height / 2;
 
     for (const auto& bullet : bullets) {
         f32 this_hlfw_x = hlfw_x;
@@ -555,7 +563,7 @@ void WindowLogic::paint_bullets() {
         );
 
 #ifdef PAINT_CONTOUR_DBG
-        paint_contour_dbg(bullet_data.contour, bullet.pos);
+        paint_contour_dbg(spirits.bullet.contour, bullet.pos);
 #endif // PAINT_CONTOUR_DBG
     }
 }
@@ -659,7 +667,7 @@ void WindowLogic::destroy_asteroids() {
             if (b.destroyed || !bullet_can_destroy(b))
                 continue;
 
-            if (intersect(asteroid_data.contour, bullet_data.contour, a.pos, b.pos)) {
+            if (intersect(spirits.asteroid.contour, spirits.bullet.contour, a.pos, b.pos)) {
                 a.destroyed = true;
                 b.destroyed = true;
                 score += 5;
@@ -670,8 +678,6 @@ void WindowLogic::destroy_asteroids() {
 }
 
 bool WindowLogic::update_scene() {
-    std::wcout << L"Update\n";
-
     size = target->GetSize();
 
     background_timer.update();
@@ -758,7 +764,7 @@ bool WindowLogic::paint() {
             State = FADE_OUT;
 
             if (!fade_out_timer.Init(FADE_OUT_INTERVAL)) {
-                std::wcout << "Cannot init fade-out timer\n";
+                std::wcout << L"Cannot init fade-out timer\n";
                 return false;
             }
         }
@@ -769,7 +775,6 @@ bool WindowLogic::paint() {
         }
     }
     else if (State == CHOOSE_NEW_LEVEL) {
-        // std::wcout << "cnl\n";
         paint_asteroids();
         paint_bullets();
 
@@ -804,7 +809,6 @@ bool WindowLogic::paint() {
         }
 
     } else if (State == FADE_OUT) {
-        std::wcout << "fout\n";
         paint_asteroids();
         paint_bullets();
 
@@ -822,12 +826,18 @@ bool WindowLogic::paint() {
 
     }
 
-    target->EndDraw();
+    HRESULT hr;
+    hr = target->EndDraw();
+
+    if (hr != S_OK) {
+        std::wcout << L"Error while drawing\n";
+        return false;
+    }
 
     // The first argument instructs DXGI to block until VSync, putting the application
     // to sleep until the next VSync. This ensures we don't waste any cycles rendering
     // frames that will never be displayed to the screen.
-    HRESULT hr = dxgi_swapchain->Present(1, 0);
+    hr = dxgi_swapchain->Present(1, 0);
     if (hr != S_OK) {
         return false;
     }

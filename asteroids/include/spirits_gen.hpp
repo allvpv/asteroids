@@ -7,63 +7,66 @@
 
 struct SpiritData {
     const wchar_t* filename;
-    const ObjectContour contour;
-    const float scale;
+    ObjectContour contour;
+    float scale;
 };
 
-inline SpiritData controller_data {
-    .filename = L"assets/rocket.png",
-    .contour = {
-        .vertices = {
-            { 0.0f, -56.0f },
-            { 19.0f, -25.5f },
-            { 22.0f, 11.5f },
-            { 30.5f, 24.0f },
-            { 29.5f, 46.5f },
-            { 14.5f, 37.5f },
-            { 8.0f, 53.0f },
-            { -8.5f, 53.0f },
-            { -15.0f, 37.5f },
-            { -29.0f, 45.5f },
-            { -30.5f, 24.0f },
-            { -22.0f, 11.0f },
-            { -19.0f, -24.5f },
+struct Spirits {
+    SpiritData controller {
+        .filename = L"assets/rocket.png",
+        .contour = {
+            .vertices = {
+                { 0.0f, -56.0f },
+                { 19.0f, -25.5f },
+                { 22.0f, 11.5f },
+                { 30.5f, 24.0f },
+                { 29.5f, 46.5f },
+                { 14.5f, 37.5f },
+                { 8.0f, 53.0f },
+                { -8.5f, 53.0f },
+                { -15.0f, 37.5f },
+                { -29.0f, 45.5f },
+                { -30.5f, 24.0f },
+                { -22.0f, 11.0f },
+                { -19.0f, -24.5f },
+            },
+            .half_of_sides = { 32.0f, 56.0f },
         },
-        .half_of_sides = { 32.0f, 56.0f },
-    },
-    .scale = 0.5f,
-};
+        .scale = 0.5f,
+    };
 
-inline SpiritData asteroid_data {
-    .filename = L"assets/asteroid_small.png",
-    .contour = {
-        .vertices = {
-            { -28.2f, -35.45f },
-            { 15.6f, -40.85f },
-            { 37.8f, -23.65f },
-            { 39.0f, -3.85f },
-            { 44.0f, 8.15f },
-            { 31.0f, 37.35f },
-            { -11.2f, 38.75f },
-            { -29.6f, 29.75f },
-            { -45.4f, -2.25f },
+    SpiritData asteroid {
+        .filename = L"assets/asteroid_small.png",
+        .contour = {
+            .vertices = {
+                { -28.2f, -35.45f },
+                { 15.6f, -40.85f },
+                { 37.8f, -23.65f },
+                { 39.0f, -3.85f },
+                { 44.0f, 8.15f },
+                { 31.0f, 37.35f },
+                { -11.2f, 38.75f },
+                { -29.6f, 29.75f },
+                { -45.4f, -2.25f },
+            },
+            .half_of_sides = { 50.0f, 43.85f },
         },
-        .half_of_sides = { 50.0f, 43.85f },
-    },
-    .scale = 0.1f,
-};
+        .scale = 0.1f,
+    };
 
-inline SpiritData bullet_data {
-    .filename = L"assets/bullet.png",
-    .contour = {
-        .vertices = {
-            { 0.5f, -54.12f },
-            { 4.25f, -42.62f },
-            { 5.0f, -17.62f },
-            { -2.75f, -17.62f },
-            { -2.25f, -42.62f },
+    SpiritData bullet {
+        .filename = L"assets/bullet.png",
+        .contour = {
+            .vertices = {
+                { 0.5f, -54.12f },
+                { 4.25f, -42.62f },
+                { 5.0f, -17.62f },
+                { -2.75f, -17.62f },
+                { -2.25f, -42.62f },
+            },
+            .half_of_sides = { 12.75f, 71.38f },
         },
-        .half_of_sides = { 12.75f, 71.38f },
-    },
-    .scale = 0.25f,
+        .scale = 0.25f,
+    };
+
 };

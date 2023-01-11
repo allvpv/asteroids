@@ -140,8 +140,6 @@ bool TextHelper::DrawNextTxt(const wchar_t* text, size_t len) {
 
     text_yellow_brush->SetOpacity(1.f);
 
-    std::wcout << text << L", " << len << L'\n';
-
     target->DrawText(text, u32(len), choose_next_format.Get(), rect, text_yellow_brush.Get(),
                      D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
 

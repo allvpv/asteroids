@@ -17,6 +17,19 @@ struct Vector {
     Vector operator+(const Vector& rhs) const {
         return Vector(x + rhs.x, y + rhs.y);
     }
+
+    Vector operator/(f32 rhs) const {
+        return Vector(x / rhs, y / rhs);
+    }
+
+    Vector operator*(f32 rhs) const {
+        return Vector(x * rhs, y * rhs);
+    }
+
+    void operator*=(f32 rhs) {
+        x *= rhs;
+        y *= rhs;
+    }
 };
 
 // If slope of AB is greater than slope of AC, then this three points are in clockwise order.
@@ -38,6 +51,14 @@ struct ObjectContour {
 
     // A size of the half of "outer rectangle" of the object
     Vector half_of_sides;
+
+    void update_for_dpi(f32 scale_factor) {
+        for (auto& vertex : vertices) {
+            vertex *= scale_factor;
+        }
+
+        half_of_sides *= scale_factor;
+    }
 };
 
 // Check if the collision may occur by comparing distance of the objects to

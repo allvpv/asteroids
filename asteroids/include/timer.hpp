@@ -10,8 +10,6 @@ struct Timer {
             return false;
         }
 
-        std::wcout << "FREQ: " << frequency << '\n';
-
         reference_time = last_time;
         interval = (frequency * interval_in_milliseconds) / 1000;
 
@@ -44,6 +42,14 @@ struct Timer {
             reference_time += count * interval;
 
         return i32 (count);
+    }
+
+    // Returns continuous number of passed intervals.
+    // get_continuous_intervals = get_interval_progress() + get_interval_count()
+    f32 get_intervals_continuous() {
+        i64 delta = last_time - reference_time;
+
+        return f32(delta) / f32(interval);
     }
 
     void start_new_interval() {
