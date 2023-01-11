@@ -293,6 +293,24 @@ bool WindowLogic::Init() {
     if (!set_asteroid_frequency())
         return false;
 
+    D2D1_COLOR_F red_bg = reference_bg;
+    D2D1_COLOR_F blue_bg = reference_bg;
+
+    red_bg.r = 1.f;
+    blue_bg.b += 0.3f;
+
+    red_background_brush = create_gradient(red_bg, reference_bg);
+
+    if (!red_background_brush) {
+        std::wcout << L"Cannot create red gradient background brush\n";
+    }
+
+    blue_background_brush = create_gradient(reference_bg, blue_bg);
+
+    if (!blue_background_brush) {
+        std::wcout << L"Cannot create blue gradient background brush\n";
+    }
+
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            move_timer.Init(MOVE_INTERVAL) &&
            new_bullet_timer.Init(NEW_BULLET_INTERVAL) &&
@@ -568,42 +586,8 @@ void WindowLogic::paint_bullets() {
     }
 }
 
-bool WindowLogic::compute_penalty() {
-    auto side_bg = reference_bg;
-    auto middle_bg = reference_bg;
-
-    f32 paint_blue_bound = size.width / 5;
-    f32 penalty_bound = size.width / 3;
-
-    penalty = max(penalty_bound - controller_pos.x, controller_pos.x + penalty_bound - size.width);
-    f32 paint_blue = fabsf(controller_pos.x - size.width / 2);
-
-    if (penalty > 0.f)
-        penalty = penalty / penalty_bound;
-    else
-        penalty = 0.f;
-
-    if (paint_blue < paint_blue_bound)
-        paint_blue = 1.f - paint_blue / paint_blue_bound;
-    else
-        paint_blue = 0.f;
-
-    if (penalty > 0.f)
-        side_bg.r += penalty;
-    else {
-        middle_bg.b += 0.3f * paint_blue;
-    }
-
-    if (penalty_timer.get_intervals_count(true)) {
-        if (penalty == 0)
-            penalty_points_total = 0;
-        else if (State == GAME_PLAY) {
-            i32 penalty_points_unit = (i32) std::floor(penalty * 5.f);
-            penalty_points_total += penalty_points_unit;
-            score -= penalty_points_unit;
-        }
-    }
-
+ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_gradient(D2D1_COLOR_F side_bg,
+                                                              D2D1_COLOR_F middle_bg) {
     D2D1_GRADIENT_STOP gradient_stops_arr[3];
 
     gradient_stops_arr[0].color = side_bg;
@@ -626,22 +610,50 @@ bool WindowLogic::compute_penalty() {
     );
 
     if (hr != S_OK || !gradient_stops)
-        return false;
+        return {};
 
-    background_brush = nullptr;
+    ComPtr<ID2D1LinearGradientBrush> brush;
 
     hr = target->CreateLinearGradientBrush(
             D2D1::LinearGradientBrushProperties(
                 D2D1::Point2F(0, 0),
                 D2D1::Point2F(size.width, 0)),
             gradient_stops.Get(),
-            &background_brush
+            &brush
     );
 
-    if (hr != S_OK || !background_brush)
-        return false;
+    if (hr != S_OK || !brush)
+        return {};
 
-    return true;
+    return brush;
+}
+
+void WindowLogic::compute_penalty() {
+    f32 paint_blue_bound = size.width / 5;
+    f32 penalty_bound = size.width / 3;
+
+    penalty = max(penalty_bound - controller_pos.x, controller_pos.x + penalty_bound - size.width);
+    paint_blue = fabsf(controller_pos.x - size.width / 2);
+
+    if (penalty > 0.f)
+        penalty = penalty / penalty_bound;
+    else
+        penalty = 0.f;
+
+    if (paint_blue < paint_blue_bound)
+        paint_blue = 1.f - paint_blue / paint_blue_bound;
+    else
+        paint_blue = 0.f;
+
+    if (penalty_timer.get_intervals_count(true)) {
+        if (penalty == 0)
+            penalty_points_total = 0;
+        else if (State == GAME_PLAY) {
+            i32 penalty_points_unit = (i32) std::floor(penalty * 5.f);
+            penalty_points_total += penalty_points_unit;
+            score -= penalty_points_unit;
+        }
+    }
 }
 
 void WindowLogic::destroy_asteroids() {
@@ -690,12 +702,7 @@ bool WindowLogic::update_scene() {
     new_asteroids();
     new_bullets();
 
-    bool result = compute_penalty();
-
-    if (!result) {
-        std::wcout << L"Cannot create background gradient\n";
-        return false;
-    }
+    compute_penalty();
 
     if (State == GAME_PLAY)
         if (is_there_collision()) {
@@ -723,15 +730,21 @@ bool WindowLogic::paint() {
         else /* GAME_PLAY */
             gameplay_opacity = 1.f;
 
-        background_brush->SetOpacity(gameplay_opacity);
-
-        // Paint background.
-        target->FillRectangle(D2D1_RECT_F {
+        auto background_rect = D2D1_RECT_F {
             .left = 0.,
             .top = 0.,
             .right = size.width,
             .bottom = size.height,
-        }, background_brush.Get());
+        };
+
+        // Paint background.
+        if (paint_blue > 0.f) {
+            blue_background_brush->SetOpacity(paint_blue * gameplay_opacity);
+            target->FillRectangle(background_rect, blue_background_brush.Get());
+        } else {
+            red_background_brush->SetOpacity(penalty * gameplay_opacity);
+            target->FillRectangle(background_rect, red_background_brush.Get());
+        }
 
         paint_controller();
         paint_asteroids();
@@ -753,7 +766,7 @@ bool WindowLogic::paint() {
             return false;
         }
 
-        if (penalty) {
+        if (penalty > 0.f) {
             if (!text_helper.DrawPenalty(penalty * gameplay_opacity, penalty_points_total)) {
                 std::wcout << L"Failed to draw penalty text\n";
                 return false;

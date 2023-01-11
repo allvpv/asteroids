@@ -38,7 +38,7 @@ struct WindowLogic {
         , State(GAME_PLAY) {}
 
 private:
-    bool compute_penalty();
+    void compute_penalty();
 
     void new_asteroids();
     void new_bullets();
@@ -58,6 +58,8 @@ private:
     void destroy_asteroids();
 
     bool is_there_collision();
+
+    ComPtr<ID2D1LinearGradientBrush> create_gradient(D2D1_COLOR_F side_bg, D2D1_COLOR_F middle_bg);
 
 #ifdef PAINT_CONTOUR_DBG
     void paint_contour_dbg(const ObjectContour& contour, const Vector& center);
@@ -83,7 +85,8 @@ private:
     ComPtr<ID2D1Device> d2d_device;
     ComPtr<ID2D1DeviceContext> d2d_context;
 
-    ComPtr<ID2D1LinearGradientBrush> background_brush;
+    ComPtr<ID2D1LinearGradientBrush> red_background_brush;
+    ComPtr<ID2D1LinearGradientBrush> blue_background_brush;
 
 #ifdef PAINT_CONTOUR_DBG
     ComPtr<ID2D1SolidColorBrush> contour_brush;
@@ -101,7 +104,6 @@ private:
         FADE_OUT,
         CHOOSE_NEW_LEVEL,
     } State;
-
 
     //
     // GAME_PLAY, GAME_OVER
@@ -122,6 +124,7 @@ private:
     f32 bound_right;
 
     f32 penalty;
+    f32 paint_blue;
 
     i32 penalty_points_total;
     i32 score = 0;
