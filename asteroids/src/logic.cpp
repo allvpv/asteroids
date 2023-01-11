@@ -2,13 +2,16 @@
 #include <utility>
 
 #include <d2d1_2.h>
+#include <d3d11.h>
+#include <dxgi1_2.h>
+#include <d2d1helper.h>
 #include <comdef.h>
 
 #include "common.hpp"
 #include "logic.hpp"
 #include "window.hpp"
 #include "math.hpp"
-#include "spirits.hpp"
+#include "timer.hpp"
 
 namespace {
     constexpr i32 MOVE_INTERVAL = 0'005;
@@ -53,6 +56,10 @@ namespace {
             std::wcout << L"Failed to load bitmap (" << filename << L"): "
                        << _com_error(hr).ErrorMessage() << L'\n';
         }
+
+        void text_helper_crash() {
+            std::wcout << L"Failed to create text helper for drawing text\n";
+        }
     }
 }
 
@@ -67,8 +74,8 @@ bool WindowLogic::Init() {
 
     D2D1_FACTORY_OPTIONS options = {};
 
-    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED,
-                           __uuidof(ID2D1Factory2),
+    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,
+                           __uuidof(ID2D1Factory1),
                            &options,
                            &d2d_factory);
     if (hr != S_OK) {
@@ -81,6 +88,7 @@ bool WindowLogic::Init() {
     controller_pos.x = size.width / 2;
     controller_pos.y = size.height - 60;
 
+    /*
     hr = d2d_factory->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
         D2D1::HwndRenderTargetProperties(window.get_handle(), size),
@@ -90,9 +98,132 @@ bool WindowLogic::Init() {
         ErrorCollection::render_target_crash(hr);
         return false;
     }
+    */
+
+    UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+
+    D3D_FEATURE_LEVEL feature_levels[] = {
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+        D3D_FEATURE_LEVEL_9_3,
+        D3D_FEATURE_LEVEL_9_2,
+        D3D_FEATURE_LEVEL_9_1
+    };
+
+    hr = D3D11CreateDevice(
+        nullptr,                    // specify null to use the default adapter
+        D3D_DRIVER_TYPE_HARDWARE,
+        0,
+        creationFlags,              // optionally set debug and Direct2D compatibility flags
+        feature_levels,             // list of feature levels this app can support
+        ARRAYSIZE(feature_levels),
+        D3D11_SDK_VERSION,
+        &device,                    // returns the Direct3D device created
+        nullptr,                    // returns feature level of device created
+        &context                    // returns the device immediate context
+    );
+
+    if (hr != S_OK) {
+        return false;
+    }
+
+    hr = device.As(&dxgi_device);
+
+    if (hr != S_OK) {
+        return false;
+    }
+
+    hr = d2d_factory->CreateDevice(dxgi_device.Get(), &d2d_device);
+
+    if (hr != S_OK) {
+        return false;
+    }
+
+    hr = d2d_device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &target);
+
+    if (hr != S_OK) {
+        return false;
+    }
+
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
+        .Width = 0, // use automatic sizing
+        .Height = 0,
+        .Format = DXGI_FORMAT_B8G8R8A8_UNORM, // this is the most common swapchain format
+        .Stereo = false,
+        .SampleDesc = {
+            .Count = 1, // don't use multi-sampling
+            .Quality = 0,
+        },
+        .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        .BufferCount = 2, // use double buffering to enable flip
+        .Scaling = DXGI_SCALING_NONE,
+        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, // all apps must use this SwapEffect
+        .Flags = 0,
+    };
+
+    hr = dxgi_device->GetAdapter(&dxgi_adapter);
+
+    if (hr != S_OK)
+        return false;
+
+    hr = dxgi_adapter->GetParent(IID_PPV_ARGS(&dxgi_factory));
+
+    if (hr != S_OK)
+        return false;
+
+    hr = dxgi_factory->CreateSwapChainForHwnd(
+        device.Get(),
+        window.get_handle(),
+        &swapChainDesc,
+        nullptr,
+        nullptr,
+        &dxgi_swapchain
+    );
+
+    if (hr != S_OK)
+        return false;
+
+    hr = dxgi_device->SetMaximumFrameLatency(1);
+
+    if (hr != S_OK)
+        return false;
+
+    hr = dxgi_swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer));
+
+    if (hr != S_OK)
+        return false;
+
+    u32 dpi = GetDpiForWindow(window.get_handle());
+
+    D2D1_BITMAP_PROPERTIES1 bitmap_properties =
+        D2D1::BitmapProperties1(
+            D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
+            dpi,
+            dpi
+        );
+
+    hr = dxgi_swapchain->GetBuffer(0, IID_PPV_ARGS(&dxgi_backbuffer));
+
+    if (hr != S_OK)
+        return false;
+
+    hr = target->CreateBitmapFromDxgiSurface(
+        dxgi_backbuffer.Get(),
+        &bitmap_properties,
+        &target_bitmap
+    );
+
+    if (hr != S_OK)
+        return false;
+
+    target->SetTarget(target_bitmap.Get());
+
 
 #ifdef PAINT_CONTOUR_DBG
-    hr = render_target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &contour_brush);
+    hr = target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &contour_brush);
 
     if (hr != S_OK || !contour_brush) {
         ErrorCollection::brush_crash(hr);
@@ -116,7 +247,7 @@ bool WindowLogic::Init() {
     }
 
     auto load_bitmap = [&](const wchar_t* fname, Microsoft::WRL::ComPtr<ID2D1Bitmap>& bitmap) {
-        auto result = load_bitmap_from_file(*render_target.Get(), *imaging_factory.Get(), fname);
+        auto result = load_bitmap_from_file(*target.Get(), *imaging_factory.Get(), fname);
 
         if (result.first != S_OK || !result.second) {
             ErrorCollection::bitmap_crash(fname, result.first);
@@ -133,6 +264,13 @@ bool WindowLogic::Init() {
         !load_bitmap(bullet_data.filename, bullet_bitmap)) {
         return false;
     }
+
+    /*
+    if (!text_helper.Init()) {
+        ErrorCollection::text_helper_crash();
+        return false;
+    }
+    */
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
            new_asteroid_timer.Init(ASTEROID_INTERVAL) &&
@@ -282,7 +420,7 @@ void WindowLogic::paint_controller() {
     f32 hlfw_y = bmp_size.height / 2;
 
     // Draw a bitmap.
-    render_target->DrawBitmap(
+    target->DrawBitmap(
         controller_bitmap.Get(),
         D2D1::RectF(
             controller_pos.x - hlfw_x,
@@ -306,7 +444,7 @@ void WindowLogic::paint_contour_dbg(const ObjectContour& contour, const Vector& 
         Vector suma = av + center;
         Vector sumb = bv + center;
 
-        render_target->DrawLine(
+        target->DrawLine(
             D2D1_POINT_2F(suma.x, suma.y),
             D2D1_POINT_2F(sumb.x, sumb.y),
             contour_brush.Get(),
@@ -320,10 +458,9 @@ void WindowLogic::collect_garbage() {
     while (!asteroids.empty()) {
         const Asteroid& last = asteroids.back();
 
-        bool outside_view = last.pos.y > size.height + asteroid_data.contour.half_of_sides.y;
         bool very_small = last.size < 0.1f;
 
-        if (outside_view || very_small)
+        if (!asteroid_visible(last) || very_small)
             asteroids.pop_back();
         else
             break;
@@ -332,17 +469,16 @@ void WindowLogic::collect_garbage() {
     while (!bullets.empty()) {
         const Bullet& last = bullets.back();
 
-        bool outside_view = last.pos.y + bullet_data.contour.half_of_sides.y < 0;
         bool very_small = last.size < 0.1f;
 
-        if (outside_view || very_small)
+        if (!bullet_visible(last) || very_small)
             bullets.pop_back();
         else
             break;
     }
 
     std::wcout << L"GC: asters: " << asteroids.size()
-               << L"bullets: " << bullets.size() << L'\n';
+               << L"; bullets: " << bullets.size() << L'\n';
 }
 
 void WindowLogic::paint_asteroids() {
@@ -362,7 +498,7 @@ void WindowLogic::paint_asteroids() {
             this_hlfw_y *= a.size;
         }
 
-        render_target->DrawBitmap(
+        target->DrawBitmap(
             asteroid_bitmap.Get(),
             D2D1::RectF(
                 a.pos.x - this_hlfw_x,
@@ -396,7 +532,7 @@ void WindowLogic::paint_bullets() {
         }
 
         // Draw a bitmap.
-        render_target->DrawBitmap(
+        target->DrawBitmap(
             bullet_bitmap.Get(),
             D2D1::RectF(
                 bullet.pos.x - this_hlfw_x,
@@ -445,7 +581,7 @@ Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_background_
 
     HRESULT hr;
 
-    hr = render_target->CreateGradientStopCollection(
+    hr = target->CreateGradientStopCollection(
         gradient_stops_arr,
         3,
         D2D1_GAMMA_2_2,
@@ -459,7 +595,7 @@ Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_background_
 
     Microsoft::WRL::ComPtr<ID2D1LinearGradientBrush> gradient_brush;
 
-    hr = render_target->CreateLinearGradientBrush(
+    hr = target->CreateLinearGradientBrush(
             D2D1::LinearGradientBrushProperties(
                 D2D1::Point2F(0, 0),
                 D2D1::Point2F(size.width, 0)),
@@ -493,7 +629,7 @@ void WindowLogic::destroy_asteroids() {
             continue;
 
         for (auto& b : bullets) {
-            if (b.destroyed)
+            if (b.destroyed || !bullet_can_destroy(b))
                 continue;
 
             if (intersect(asteroid_data.contour, bullet_data.contour, a.pos, b.pos)) {
@@ -506,7 +642,7 @@ void WindowLogic::destroy_asteroids() {
 }
 
 bool WindowLogic::on_paint() {
-    size = render_target->GetSize();
+    size = target->GetSize();
 
     background_timer.update();
     new_asteroid_timer.update();
@@ -534,10 +670,13 @@ bool WindowLogic::on_paint() {
     collect_garbage();
 
     // Proper drawing.
-    render_target->BeginDraw();
+    PAINTSTRUCT ps;
+    HDC hDC = BeginPaint(window.get_handle(), &ps);
+
+    target->BeginDraw();
 
     // Paint background.
-    render_target->FillRectangle(D2D1_RECT_F {
+    target->FillRectangle(D2D1_RECT_F {
         .left = 0.,
         .top = 0.,
         .right = size.width,
@@ -548,7 +687,14 @@ bool WindowLogic::on_paint() {
     paint_asteroids();
     paint_bullets();
 
-    render_target->EndDraw();
+    target->EndDraw();
+
+    HRESULT hr = dxgi_swapchain->Present(1, 0);
+    if (hr != S_OK) {
+        return false;
+    }
+
+    EndPaint(window.get_handle(), &ps);
 
     return true;
 }

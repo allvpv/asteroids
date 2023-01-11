@@ -4,13 +4,15 @@
 
 #include <windows.h>
 #include <d2d1.h>
-#include <wrl.h>
-#include <wrl/client.h>
+#include <d2d1_2.h>
+#include <d3d11.h>
+#include <dxgi1_2.h>
 
 #include "common.hpp"
 #include "timer.hpp"
 #include "graphics.hpp"
 #include "math.hpp"
+#include "spirits.hpp"
 
 struct Window;
 
@@ -57,8 +59,21 @@ private:
     Microsoft::WRL::ComPtr<ID2D1Bitmap> asteroid_bitmap;
     Microsoft::WRL::ComPtr<ID2D1Bitmap> bullet_bitmap;
 
-    Microsoft::WRL::ComPtr<ID2D1Factory> d2d_factory;
-    Microsoft::WRL::ComPtr<ID2D1HwndRenderTarget> render_target;
+    Microsoft::WRL::ComPtr<ID2D1Factory1> d2d_factory;
+    Microsoft::WRL::ComPtr<ID3D11Device> device;
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+    Microsoft::WRL::ComPtr<IDXGIDevice1> dxgi_device;
+    Microsoft::WRL::ComPtr<ID2D1DeviceContext> target;
+
+    Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
+    Microsoft::WRL::ComPtr<IDXGIFactory2> dxgi_factory;
+    Microsoft::WRL::ComPtr<IDXGISwapChain1> dxgi_swapchain;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> backbuffer;
+    Microsoft::WRL::ComPtr<IDXGISurface> dxgi_backbuffer;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap1> target_bitmap;
+
+    Microsoft::WRL::ComPtr<ID2D1Device> d2d_device;
+    Microsoft::WRL::ComPtr<ID2D1Device> d2d_context;
 
 #ifdef PAINT_CONTOUR_DBG
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> contour_brush;
@@ -85,11 +100,23 @@ private:
         f32 size;
     };
 
+    bool asteroid_visible(const Asteroid& asteroid) {
+        return asteroid.pos.y <= size.height + asteroid_data.contour.half_of_sides.y;
+    }
+
     struct Bullet {
         Vector pos;
         bool destroyed;
         f32 size;
     };
+
+    bool bullet_visible(const Bullet& bullet) {
+        return bullet.pos.y + bullet_data.contour.half_of_sides.y >= 0;
+    }
+
+    bool bullet_can_destroy(const Bullet& bullet) {
+        return bullet.pos.y > 0;
+    }
 
     f32 accel_left = 0, accel_right = 0;
     f32 controller_downspeed = 0;
@@ -98,12 +125,15 @@ private:
     std::deque<Asteroid> asteroids;
     std::deque<Bullet> bullets;
 
-
     std::uniform_real_distribution<double> unif_speed;
     std::normal_distribution<double> norm_asteroid_x;
     std::uniform_real_distribution<double> unif_asteroid_y;
 
     std::random_device rd;
     std::mt19937 gen;
+
+    /*
+    TextHelper text_helper;
+    */
 };
 

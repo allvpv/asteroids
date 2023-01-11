@@ -3,12 +3,10 @@
 #include <windows.h>
 #include <wincodec.h>
 #include <d2d1.h>
-#include <wrl.h>
-#include <wrl/client.h>
+#include <d2d1_1.h>
 
-template<typename T>
-using ComPtr = Microsoft::WRL::ComPtr<T>;
+#include "common.hpp"
 
-std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTarget& render_target,
+std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1DeviceContext& target,
                                                               IWICImagingFactory2& imaging_factory,
                                                               const wchar_t* uri);

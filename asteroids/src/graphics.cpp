@@ -2,7 +2,7 @@
 #include <utility>
 #include "graphics.hpp"
 
-std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTarget& render_target,
+std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1DeviceContext& target,
                                                               IWICImagingFactory2& imaging_factory,
                                                               const wchar_t* uri) {
     HRESULT hr;
@@ -44,7 +44,7 @@ std::pair<HRESULT, ComPtr<ID2D1Bitmap>> load_bitmap_from_file(ID2D1HwndRenderTar
     if (hr != S_OK)
         return { hr, {} };
 
-    hr = render_target.CreateBitmapFromWicBitmap(converter.Get(), NULL, &bitmap);
+    hr = target.CreateBitmapFromWicBitmap(converter.Get(), NULL, &bitmap);
 
     if (hr != S_OK)
         return { hr, {} };

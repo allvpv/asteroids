@@ -19,9 +19,9 @@ struct Vector {
     }
 };
 
-// Are the three points in clockwise order?
+// If slope of AB is greater than slope of AC, then this three points are in clockwise order.
 inline bool clockwise(Vector a, Vector b, Vector c) {
-    return (c.y - a.y) * (b.x - a.x) < (b.y - a.y) * (c.x - a.x);
+    return (b.y - a.y) * (c.x - a.x) > (c.y - a.y) * (b.x - a.x);
 }
 
 inline bool intersect(const Vector& a, const Vector& b, const Vector& c, const Vector& d) {
@@ -42,6 +42,7 @@ struct ObjectContour {
 
 // Check if the collision may occur by comparing distance of the objects to
 // their size. If so, then check every edge pair for collision.
+//
 // The main advantage of this algorithms in comparison to SAT is it's
 // simplicity, so it is easy to implement it at 2 AM.
 inline bool intersect(const ObjectContour& lhs, const ObjectContour& rhs,

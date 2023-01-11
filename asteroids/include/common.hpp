@@ -1,8 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <cmath>
-
 #include <windows.h>
+#include <wrl.h>
+#include <wrl/client.h>
+
+template<typename T>
+using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 using u64 = uint64_t;
 using i64 = int64_t;
@@ -22,6 +26,5 @@ using f64 = double;
 // #define PAINT_CONTOUR_DBG
 
 inline bool key_up(int vkey) {
-    return (GetAsyncKeyState(vkey) & 0x8000) != 0;
+    return !!(GetAsyncKeyState(vkey) & 0x8000);
 }
-

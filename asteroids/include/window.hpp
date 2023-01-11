@@ -1,7 +1,6 @@
 #pragma once
 #include <windows.h>
 #include "common.hpp"
-#include "timer.hpp"
 #include "logic.hpp"
 
 struct Window {

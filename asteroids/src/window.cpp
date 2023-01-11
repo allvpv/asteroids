@@ -26,7 +26,7 @@ bool Window::Init(const wchar_t* class_name, const wchar_t* title) {
 
     // Create the window.
     HWND hwnd = CreateWindowEx(
-        WS_EX_COMPOSITED, // Extended window style.
+        0,          // Extended window style.
         class_name, // Window class
         title,      // Window title
         WS_OVERLAPPEDWINDOW, // Window style
