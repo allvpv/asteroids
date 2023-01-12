@@ -746,6 +746,8 @@ bool WindowLogic::paint() {
     target->BeginDraw();
     target->Clear(D2D1::ColorF(0.f, 0.f, 0.f));
 
+    text_helper.Start();
+
     if (State == GAME_PLAY || State == GAME_OVER || State == FADE_IN) {
         f32 gameplay_opacity;
 
@@ -780,22 +782,13 @@ bool WindowLogic::paint() {
         }
 
         if (State == GAME_OVER) {
-            if (!text_helper.DrawGameOver(game_over_progress)) {
-                std::wcout << L"Failed to draw game_over\n";
-                return false;
-            }
+            text_helper.DrawGameOver(game_over_progress);
         }
 
-        if (!text_helper.DrawData(score, difficulty)) {
-            std::wcout << L"Failed to draw score\n";
-            return false;
-        }
+        text_helper.DrawData(score, difficulty);
 
         if (penalty > 0.f) {
-            if (!text_helper.DrawPenalty(penalty * gameplay_opacity, penalty_points_total)) {
-                std::wcout << L"Failed to draw penalty text\n";
-                return false;
-            }
+            text_helper.DrawPenalty(penalty * gameplay_opacity, penalty_points_total);
         }
 
         if (game_over_progress >= 1.f) {
@@ -864,6 +857,11 @@ bool WindowLogic::paint() {
 
     }
 
+    if (!text_helper.Flush()) {
+        std::wcout << L"Failed to flush texts\n";
+        return false;
+    }
+
     HRESULT hr;
     hr = target->EndDraw();
 
@@ -879,7 +877,7 @@ bool WindowLogic::paint() {
     if (hr != S_OK) {
         return false;
     }
-
+    
     return true;
 }
 

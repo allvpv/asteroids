@@ -27,9 +27,30 @@ struct TextHelper {
     bool DrawGameOver(f32 opacity);
     bool DrawPenalty(f32 opacity, i32 penalty);
     bool DrawData(i32 score, u32 difficulty);
-    bool DrawTargetWithGlow();
+
+    bool Flush();
+    void Start();
+
+    bool data_included = false;
+
+    bool penalty_included = false;
+    f32 penalty_opacity;
+
+    bool gameover_included = false;
+    f32 gameover_opacity;
 
 private:
+    bool PrerenderData();
+    bool PrerenderPenalty();
+    bool PrerenderGameOver();
+
+    D2D1_RECT_F rect_score_text;
+    D2D1_RECT_F rect_difficulty_text;
+
+    ComPtr<ID2D1Bitmap> data_prerendered;
+    ComPtr<ID2D1Bitmap> penalty_prerendered;
+    ComPtr<ID2D1Bitmap> gameover_prerendered;
+
     ComPtr<ID2D1DeviceContext> main_target;
     ComPtr<ID2D1BitmapRenderTarget> target;
 
