@@ -69,7 +69,6 @@ bool TextHelper::Init(ComPtr<ID2D1DeviceContext> main_target_) {
     if (hr != S_OK || !choose_next_format)
         return false;
 
-
     hr = write_factory->CreateTextFormat(
         L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL, 70.f, L"", &next_format

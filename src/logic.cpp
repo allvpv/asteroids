@@ -199,8 +199,8 @@ bool WindowLogic::Init() {
         D2D1::BitmapProperties1(
             D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
             D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-            (f32) 96,
-            (f32) 96
+            (f32) 96.f,
+            (f32) 96.f
         );
 
     hr = dxgi_swapchain->GetBuffer(0, IID_PPV_ARGS(&dxgi_backbuffer));
@@ -224,7 +224,7 @@ bool WindowLogic::Init() {
     hr = target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &contour_brush);
 
     if (hr != S_OK || !contour_brush) {
-        ErrorCollection::brush_crash(hr);
+       ErrorCollection::brush_crash(hr);
         return false;
     }
 #endif // PAINT_CONTOUR_DBG
@@ -299,16 +299,18 @@ bool WindowLogic::Init() {
     red_bg.r = 1.f;
     blue_bg.b += 0.3f;
 
-    red_background_brush = create_gradient(red_bg, reference_bg);
+    size = target->GetSize();
 
-    if (!red_background_brush) {
-        std::wcout << L"Cannot create red gradient background brush\n";
+    red_background_bitmap = create_gradient(red_bg, reference_bg);
+
+    if (!red_background_bitmap) {
+        std::wcout << L"Cannot create red gradient background\n";
     }
 
-    blue_background_brush = create_gradient(reference_bg, blue_bg);
+    blue_background_bitmap = create_gradient(reference_bg, blue_bg);
 
-    if (!blue_background_brush) {
-        std::wcout << L"Cannot create blue gradient background brush\n";
+    if (!blue_background_bitmap) {
+        std::wcout << L"Cannot create blue gradient background\n";
     }
 
     return background_timer.Init(BACKGROUND_INTERVAL) &&
@@ -586,8 +588,8 @@ void WindowLogic::paint_bullets() {
     }
 }
 
-ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_gradient(D2D1_COLOR_F side_bg,
-                                                              D2D1_COLOR_F middle_bg) {
+ComPtr<ID2D1Bitmap> WindowLogic::create_gradient(D2D1_COLOR_F side_bg,
+                                                 D2D1_COLOR_F middle_bg) {
     D2D1_GRADIENT_STOP gradient_stops_arr[3];
 
     gradient_stops_arr[0].color = side_bg;
@@ -625,7 +627,31 @@ ComPtr<ID2D1LinearGradientBrush> WindowLogic::create_gradient(D2D1_COLOR_F side_
     if (hr != S_OK || !brush)
         return {};
 
-    return brush;
+    ComPtr<ID2D1BitmapRenderTarget> gradient_target;
+    hr = target->CreateCompatibleRenderTarget(&gradient_target);
+
+    if (hr != S_OK || !gradient_target)
+        return {};
+
+    ComPtr<ID2D1Bitmap> bitmap;
+
+    D2D1_RECT_F background_rect {
+        .left = 0,
+        .top = 0,
+        .right = size.width,
+        .bottom = size.height,
+    };
+
+    gradient_target->BeginDraw();
+    gradient_target->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+    gradient_target->FillRectangle(background_rect, brush.Get());
+    hr = gradient_target->EndDraw();
+    hr = gradient_target->GetBitmap(&bitmap);
+
+    if (hr != S_OK || !bitmap)
+        return {};
+
+    return bitmap;
 }
 
 void WindowLogic::compute_penalty() {
@@ -730,20 +756,19 @@ bool WindowLogic::paint() {
         else /* GAME_PLAY */
             gameplay_opacity = 1.f;
 
-        auto background_rect = D2D1_RECT_F {
-            .left = 0.,
-            .top = 0.,
-            .right = size.width,
-            .bottom = size.height,
-        };
-
         // Paint background.
         if (paint_blue > 0.f) {
-            blue_background_brush->SetOpacity(paint_blue * gameplay_opacity);
-            target->FillRectangle(background_rect, blue_background_brush.Get());
+            target->DrawBitmap(blue_background_bitmap.Get(),
+                               NULL,
+                               paint_blue * gameplay_opacity,
+                               D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+                               NULL);
         } else {
-            red_background_brush->SetOpacity(penalty * gameplay_opacity);
-            target->FillRectangle(background_rect, red_background_brush.Get());
+            target->DrawBitmap(red_background_bitmap.Get(),
+                               NULL,
+                               penalty * gameplay_opacity,
+                               D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+                               NULL);
         }
 
         paint_controller();

@@ -59,7 +59,7 @@ private:
 
     bool is_there_collision();
 
-    ComPtr<ID2D1LinearGradientBrush> create_gradient(D2D1_COLOR_F side_bg, D2D1_COLOR_F middle_bg);
+    ComPtr<ID2D1Bitmap> create_gradient(D2D1_COLOR_F side_bg, D2D1_COLOR_F middle_bg);
 
 #ifdef PAINT_CONTOUR_DBG
     void paint_contour_dbg(const ObjectContour& contour, const Vector& center);
@@ -85,8 +85,8 @@ private:
     ComPtr<ID2D1Device> d2d_device;
     ComPtr<ID2D1DeviceContext> d2d_context;
 
-    ComPtr<ID2D1LinearGradientBrush> red_background_brush;
-    ComPtr<ID2D1LinearGradientBrush> blue_background_brush;
+    ComPtr<ID2D1Bitmap> red_background_bitmap;
+    ComPtr<ID2D1Bitmap> blue_background_bitmap;
 
 #ifdef PAINT_CONTOUR_DBG
     ComPtr<ID2D1SolidColorBrush> contour_brush;
