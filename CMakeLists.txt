@@ -8,9 +8,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 set_target_properties(${PROJECT_NAME} PROPERTIES
                       VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
-# You can optionally turn on beta support for HighDPI
-# But this game looks better in LowDPI, just like Hollywood film looks better in 27 FPS
-set_target_properties(${PROJECT_NAME} PROPERTIES VS_DPI_AWARE "OFF")
+# You may turn HiDPI on, but be aware that this game looks better in LowDPI,
+# just like a Hollywood film looks better in 24 FPS
+set_target_properties(${PROJECT_NAME} PROPERTIES VS_DPI_AWARE "ON")
 
 target_include_directories(${PROJECT_NAME} PRIVATE "include")
 target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE)

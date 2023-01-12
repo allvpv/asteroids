@@ -218,13 +218,13 @@ bool WindowLogic::Init() {
         return false;
 
     target->SetTarget(target_bitmap.Get());
-
+    target->SetDpi(f32(dpi), f32(dpi));
 
 #ifdef PAINT_CONTOUR_DBG
     hr = target->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 0.f), &contour_brush);
 
     if (hr != S_OK || !contour_brush) {
-       ErrorCollection::brush_crash(hr);
+        ErrorCollection::brush_crash(hr);
         return false;
     }
 #endif // PAINT_CONTOUR_DBG
@@ -263,24 +263,18 @@ bool WindowLogic::Init() {
         return false;
     }
 
-    dpi_factor = (f32) GetDpiForWindow(window.get_handle()) / 96.f;
-
-    spirits.controller.contour.update_for_dpi(dpi_factor);
-    spirits.asteroid.contour.update_for_dpi(dpi_factor);
-    spirits.bullet.contour.update_for_dpi(dpi_factor);
-
-    auto dpi_scale = [dpi_factor = dpi_factor](D2D1_SIZE_F& size, f32 factor) {
-        size.width = size.width * factor * dpi_factor;
-        size.height = size.height * factor * dpi_factor;
+    auto scale = [](D2D1_SIZE_F& size, f32 factor) {
+        size.width = size.width * factor;
+        size.height = size.height * factor;
     };
 
     controller_bmp_size = controller_bitmap->GetSize();
     asteroid_bmp_size = asteroid_bitmap->GetSize();
     bullet_bmp_size = bullet_bitmap->GetSize();
 
-    dpi_scale(controller_bmp_size, spirits.controller.scale);
-    dpi_scale(asteroid_bmp_size, spirits.asteroid.scale);
-    dpi_scale(bullet_bmp_size, spirits.bullet.scale);
+    scale(controller_bmp_size, spirits.controller.scale);
+    scale(asteroid_bmp_size, spirits.asteroid.scale);
+    scale(bullet_bmp_size, spirits.bullet.scale);
 
     if (!text_helper.Init(target)) {
         ErrorCollection::text_helper_crash();
@@ -367,7 +361,7 @@ void WindowLogic::new_asteroids() {
 
         asteroids.push_front(Asteroid {
             .pos = Vector(x_pos, y_pos),
-            .speed = speed * dpi_factor,
+            .speed = speed,
             .destroyed = false,
             .size = 1.f,
         });
@@ -432,7 +426,7 @@ void WindowLogic::controller_move(const f32 shift) {
         decelerate(accel_left, 0.75f);
     }
 
-    controller_pos.x += (accel_right - accel_left) * shift * 0.4f * dpi_factor;
+    controller_pos.x += (accel_right - accel_left) * shift * 0.4f;
 }
 
 void WindowLogic::asteroids_move(const f32 shift) {
@@ -443,7 +437,7 @@ void WindowLogic::asteroids_move(const f32 shift) {
 
 void WindowLogic::bullets_move(const f32 shift) {
     for (auto& b : bullets) {
-        b.pos.y -= shift * BULLET_SPEED * dpi_factor;
+        b.pos.y -= shift * BULLET_SPEED;
     }
 }
 
@@ -877,7 +871,7 @@ bool WindowLogic::paint() {
     if (hr != S_OK) {
         return false;
     }
-    
+
     return true;
 }
 

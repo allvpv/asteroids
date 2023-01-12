@@ -51,14 +51,6 @@ struct ObjectContour {
 
     // A size of the half of "outer rectangle" of the object
     Vector half_of_sides;
-
-    void update_for_dpi(f32 scale_factor) {
-        for (auto& vertex : vertices) {
-            vertex *= scale_factor;
-        }
-
-        half_of_sides *= scale_factor;
-    }
 };
 
 // Check if the collision may occur by comparing distance of the objects to
