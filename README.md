@@ -2,8 +2,9 @@
   <img src="gifgif.gif"/>
 </p>
 
-Game for DirectX programming course (2D part). Not very spectacular for sure
-but still pretty nice for a game done in 3 days in a very low-level API.
+Game for DirectX programming course (2D part). Nothing spectacular for sure but
+I think it is quite cool for a game done in 3 days. It reminds me of old flash
+games.
 
 ### Remarks for teacher
 

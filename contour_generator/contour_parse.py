@@ -39,8 +39,8 @@ print('#include "math.hpp"')
 print('')
 print("""struct SpiritData {
     const wchar_t* filename;
-    ObjectContour contour;
-    float scale;
+    const ObjectContour contour;
+    const float scale;
 };
 
 struct Spirits {""");
