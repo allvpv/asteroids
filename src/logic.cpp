@@ -71,7 +71,7 @@ namespace {
 
 void WindowLogic::reset_controller_pos() {
     controller_pos.x = size.width / 2;
-    controller_pos.y = size.height - 60;
+    controller_pos.y = size.height - 40;
 }
 
 bool WindowLogic::Init() {

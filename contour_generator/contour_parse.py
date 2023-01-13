@@ -45,7 +45,7 @@ print("""struct SpiritData {
 
 struct Spirits {""");
 
-process_file("rocket", "controller", 128., 224., 0.5)
+process_file("rocket", "controller", 336., 702., 0.3)
 process_file("asteroid_small", "asteroid", 1000., 877., 0.1)
 process_file("bullet", "bullet", 102., 571., 0.25)
 
